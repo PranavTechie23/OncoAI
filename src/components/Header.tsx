@@ -15,14 +15,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
 
-const navLinks = [
+const publicNavLinks = [
   { name: "Home", path: "/" },
+  { name: "About", path: "/about" },
+  { name: "Support", path: "/support" },
+];
+
+const privateNavLinks = [
   { name: "Dashboard", path: "/dashboard" },
   { name: "Patients", path: "/patients" },
   { name: "AI Recommendations", path: "/recommendations" },
   { name: "Reports", path: "/reports" },
   { name: "Appointments", path: "/appointments" },
-  { name: "About", path: "/about" },
 ];
 
 export function Header() {
@@ -31,6 +35,7 @@ export function Header() {
   const location = useLocation();
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const navLinks = isAuthenticated ? privateNavLinks : publicNavLinks;
 
   const handleLogout = () => {
     logout();
@@ -84,51 +89,54 @@ export function Header() {
         <div className="hidden md:flex items-center gap-2">
           <ThemeToggle />
           {isAuthenticated ? (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/patients" className="cursor-pointer">
-                      <Activity className="mr-2 h-4 w-4" />
-                      Patients
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard" className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/patients" className="cursor-pointer">
+                    <Activity className="mr-2 h-4 w-4" />
+                    Patients
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/login">Login</Link>
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/login">Login</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/signup">Register</Link>
+              </Button>
+            </>
           )}
         </div>
 
@@ -177,9 +185,14 @@ export function Header() {
                   </Button>
                 </>
               ) : (
-                <Button variant="outline" className="w-full" asChild>
-                  <Link to="/login">Login</Link>
-                </Button>
+                <div className="space-y-2 px-4 pb-4">
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link to="/login">Login</Link>
+                  </Button>
+                  <Button className="w-full" asChild>
+                    <Link to="/signup">Register</Link>
+                  </Button>
+                </div>
               )}
             </div>
           </nav>

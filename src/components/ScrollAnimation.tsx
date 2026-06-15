@@ -68,10 +68,10 @@ export function ScrollAnimation({
 
   const getTransition = () => {
     const springConfigs = {
-      none: { type: "tween", duration, delay, ease: "easeOut" },
-      low: { type: "spring", stiffness: 50, damping: 20, delay },
-      medium: { type: "spring", stiffness: 100, damping: 20, delay },
-      high: { type: "spring", stiffness: 200, damping: 25, delay },
+      none: { type: "tween" as const, duration, delay, ease: "easeOut" as const },
+      low: { type: "spring" as const, stiffness: 50, damping: 20, delay },
+      medium: { type: "spring" as const, stiffness: 100, damping: 20, delay },
+      high: { type: "spring" as const, stiffness: 200, damping: 25, delay },
     };
     return springConfigs[springiness];
   };

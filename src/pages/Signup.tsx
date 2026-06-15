@@ -518,8 +518,15 @@ export default function Signup() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setStep((s) => Math.max(1, s - 1))}
-                disabled={step === 1 || loading}
+                onClick={() => {
+                  if (step === 1) {
+                    navigate(-1);
+                  } else {
+                    setStep((s) => Math.max(1, s - 1));
+                    setError("");
+                  }
+                }}
+                disabled={loading}
                 className="gap-1"
               >
                 <ArrowLeft className="h-4 w-4" />

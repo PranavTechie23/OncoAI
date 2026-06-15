@@ -1,3 +1,6 @@
+import { Suspense, lazy, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { MessageCircle } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,25 +8,25 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { ChatBot } from "./components/ChatBot";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Patients from "./pages/Patients";
-import Recommendations from "./pages/Recommendations";
-import Reports from "./pages/Reports";
-import Documentation from "./pages/Documentation";
-import ApiReference from "./pages/ApiReference";
-import ResearchPapers from "./pages/ResearchPapers";
-import Support from "./pages/Support";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import About from "./pages/About";
-import PatientDetail from "./pages/PatientDetail";
-import Dashboard from "./pages/Dashboard";
-import Appointments from "./pages/Appointments";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
+const ChatBot = lazy(() => import("./components/ChatBot").then((mod) => ({ default: mod.ChatBot })));
+const Index = lazy(() => import("./pages/Index"));
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
+const Patients = lazy(() => import("./pages/Patients"));
+const Recommendations = lazy(() => import("./pages/Recommendations"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Documentation = lazy(() => import("./pages/Documentation"));
+const ApiReference = lazy(() => import("./pages/ApiReference"));
+const ResearchPapers = lazy(() => import("./pages/ResearchPapers"));
+const Support = lazy(() => import("./pages/Support"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const About = lazy(() => import("./pages/About"));
+const PatientDetail = lazy(() => import("./pages/PatientDetail"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Appointments = lazy(() => import("./pages/Appointments"));
+const Settings = lazy(() => import("./pages/Settings"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 import { routes } from "./lib/routes";
 import { ScrollToTop } from "./components/ScrollToTop";
 
@@ -36,8 +39,30 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
 
 function PublicRoute({ children }: { children: React.ReactElement }) {
   const { isAuthenticated } = useAuth();
-  // Redirect to home if already logged in
-  return !isAuthenticated ? children : <Navigate to="/" replace />;
+  // Redirect to dashboard if already logged in
+  return !isAuthenticated ? children : <Navigate to="/dashboard" replace />;
+}
+
+function ChatBotLoader() {
+  const [loaded, setLoaded] = useState(false);
+
+  if (!loaded) {
+    return (
+      <Button
+        onClick={() => setLoaded(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
+        size="icon"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </Button>
+    );
+  }
+
+  return (
+    <Suspense fallback={<div className="fixed bottom-6 right-6 z-50 rounded-full bg-white p-3 shadow-lg">Loading chat...</div>}>
+      <ChatBot initialOpen />
+    </Suspense>
+  );
 }
 
 const App = () => (
@@ -54,25 +79,26 @@ const App = () => (
             }}
           >
             <ScrollToTop />
-            <Routes>
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <Login />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/signup"
-                element={
-                  <PublicRoute>
-                    <Signup />
-                  </PublicRoute>
-                }
-              />
-              <Route path="/" element={<Index />} />
-              <Route path="/about" element={<About />} />
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+              <Routes>
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <Login />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/signup"
+                  element={
+                    <PublicRoute>
+                      <Signup />
+                    </PublicRoute>
+                  }
+                />
+                <Route path="/" element={<Index />} />
+                <Route path="/about" element={<About />} />
               <Route
                 path="/dashboard"
                 element={
@@ -139,7 +165,8 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <ChatBot />
+            {process.env.NODE_ENV !== 'production' ? <ChatBotLoader /> : <ChatBotLoader />}
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>

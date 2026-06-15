@@ -29,6 +29,10 @@ interface ChatMessage {
   content: string;
 }
 
+interface ChatBotProps {
+  initialOpen?: boolean;
+}
+
 const initialMessages: Message[] = [
   {
     id: "1",
@@ -38,19 +42,19 @@ const initialMessages: Message[] = [
   },
 ];
 
-export function ChatBot() {
-  const [isOpen, setIsOpen] = useState(false);
+export function ChatBot({ initialOpen }: ChatBotProps) {
+  const [isOpen, setIsOpen] = useState(initialOpen ?? false);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (isOpen && scrollEndRef.current) {
+      scrollEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [messages, isOpen]);
 
@@ -70,16 +74,9 @@ export function ChatBot() {
     setIsTyping(true);
     setError(null);
 
-    // Add to conversation history
-    const updatedHistory = [
-      ...conversationHistory,
-      { role: 'user' as const, content: userInput },
-    ];
-    setConversationHistory(updatedHistory);
-
     try {
       // Try to get AI response
-      const aiResponse = await sendChatMessage(updatedHistory, userInput);
+      const aiResponse = await sendChatMessage(conversationHistory, userInput);
       
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -90,9 +87,10 @@ export function ChatBot() {
 
       setMessages((prev) => [...prev, botMessage]);
       
-      // Update conversation history with bot response
-      setConversationHistory([
-        ...updatedHistory,
+      // Update conversation history with user and bot response
+      setConversationHistory((prev) => [
+        ...prev,
+        { role: 'user' as const, content: userInput },
         { role: 'assistant' as const, content: aiResponse },
       ]);
     } catch (err) {
@@ -110,14 +108,17 @@ export function ChatBot() {
       };
 
       setMessages((prev) => [...prev, botMessage]);
+      setConversationHistory((prev) => [
+        ...prev,
+        { role: 'user' as const, content: userInput },
+        { role: 'assistant' as const, content: fallbackResponse },
+      ]);
       
-      // Show error toast if it's an API key issue
-      if (errorMessage.includes('API key')) {
-        toast.error('API Configuration', {
-          description: errorMessage + ' Using fallback responses.',
-        });
-        setError(errorMessage);
-      }
+      // Show error toast for any API issue
+      toast.error('Chat error', {
+        description: errorMessage,
+      });
+      setError(errorMessage);
     } finally {
       setIsTyping(false);
     }
@@ -206,7 +207,7 @@ export function ChatBot() {
           )}
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
@@ -252,6 +253,7 @@ export function ChatBot() {
                   </div>
                 </div>
               )}
+              <div ref={scrollEndRef} />
             </div>
           </ScrollArea>
 

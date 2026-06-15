@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Users, Activity, AlertCircle, Brain, Sparkles } from "lucide-react";
 import { apiService } from "@/services/api";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { AIInsights } from "@/components/dashboard/AIInsights";
-import { PatientGrowthChart } from "@/components/dashboard/PatientGrowthChart";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { TopPatients, QuickActions } from "@/components/dashboard/DashboardWidgets";
+const PatientGrowthChart = lazy(() => import("@/components/dashboard/PatientGrowthChart").then((mod) => ({ default: mod.PatientGrowthChart })));
+const AIInsights = lazy(() => import("@/components/dashboard/AIInsights").then((mod) => ({ default: mod.AIInsights })));
+const RecentActivity = lazy(() => import("@/components/dashboard/RecentActivity").then((mod) => ({ default: mod.RecentActivity })));
+const TopPatients = lazy(() => import("@/components/dashboard/DashboardWidgets").then((mod) => ({ default: mod.TopPatients })));
+const QuickActions = lazy(() => import("@/components/dashboard/DashboardWidgets").then((mod) => ({ default: mod.QuickActions })));
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePickerWithRange } from "@/components/dashboard/DatePickerWithRange";
 import { DateRange } from "react-day-picker";
@@ -176,19 +177,29 @@ export default function Dashboard() {
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart Section - Spans 2 columns */}
-            <PatientGrowthChart data={monthlyStats} />
+            <Suspense fallback={<div className="lg:col-span-2 rounded-3xl border border-border/50 bg-card/70 p-6 shadow-xl"><div className="h-72 animate-pulse rounded-3xl bg-muted" /></div>}>
+              <PatientGrowthChart data={monthlyStats} />
+            </Suspense>
             
             {/* AI Insights - Spans 1 column */}
             <div className="lg:col-span-1">
-              <AIInsights />
+              <Suspense fallback={<div className="rounded-3xl border border-border/50 bg-card/70 p-6 shadow-xl"><div className="h-72 animate-pulse rounded-3xl bg-muted" /></div>}>
+                <AIInsights />
+              </Suspense>
             </div>
           </div>
 
           {/* Bottom Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <RecentActivity activities={recentActivities} />
-            <TopPatients patients={topPatients} />
-            <QuickActions />
+            <Suspense fallback={<div className="rounded-3xl border border-border/50 bg-card/70 p-6 shadow-xl"><div className="h-56 animate-pulse rounded-3xl bg-muted" /></div>}>
+              <RecentActivity activities={recentActivities} />
+            </Suspense>
+            <Suspense fallback={<div className="rounded-3xl border border-border/50 bg-card/70 p-6 shadow-xl"><div className="h-56 animate-pulse rounded-3xl bg-muted" /></div>}>
+              <TopPatients patients={topPatients} />
+            </Suspense>
+            <Suspense fallback={<div className="rounded-3xl border border-border/50 bg-card/70 p-6 shadow-xl"><div className="h-56 animate-pulse rounded-3xl bg-muted" /></div>}>
+              <QuickActions />
+            </Suspense>
           </div>
         </main>
         
