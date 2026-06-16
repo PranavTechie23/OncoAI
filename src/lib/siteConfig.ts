@@ -4,6 +4,6 @@ export const siteConfig = {
   contactAddress: "Medical Research Center",
   brand: {
     name: "OncoAI",
-    year: 2024,
+    year: 2026,
   },
 };

@@ -20,7 +20,7 @@ export default function Login() {
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -32,7 +32,7 @@ export default function Login() {
     try {
       const success = await login(email, password);
       if (success) {
-        navigate("/", { replace: true });
+        navigate("/dashboard", { replace: true });
       } else {
         setError("Invalid email or password");
       }

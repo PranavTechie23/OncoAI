@@ -32,13 +32,22 @@ export async function sendChatMessage(
 ): Promise<string> {
   try {
     if (API_PROVIDER === 'gemini') {
+      if (!GEMINI_API_KEY) {
+        console.warn('Gemini API key missing, using local fallback response.');
+        return getFallbackResponse(userMessage);
+      }
       return await sendGeminiMessage(messages, userMessage);
-    } else {
-      return await sendOpenAIMessage(messages, userMessage);
     }
+
+    if (!OPENAI_API_KEY) {
+      console.warn('OpenAI API key missing, using local fallback response.');
+      return getFallbackResponse(userMessage);
+    }
+
+    return await sendOpenAIMessage(messages, userMessage);
   } catch (error) {
     console.error('Chat API Error:', error);
-    throw new Error('Failed to get response from AI. Please try again.');
+    return getFallbackResponse(userMessage);
   }
 }
 
@@ -162,6 +171,18 @@ export function getFallbackResponse(userMessage: string): string {
   
   if (lowerMessage.includes('risk') || lowerMessage.includes('assessment')) {
     return "Risk assessment involves analyzing multiple factors including cancer type, stage, and comorbidities. Would you like to discuss a specific case?";
+  }
+
+  if (lowerMessage.includes('cancer')) {
+    return "Cancer is a broad diagnosis that depends on the type, stage, and treatment history. Please share more details such as the cancer type, stage, prior therapies, or whether you are looking for hospitals in a specific city like Pune.";
+  }
+
+  if ((lowerMessage.includes('cancer hospital') || lowerMessage.includes('cancer centre') || lowerMessage.includes('cancer center') || lowerMessage.includes('oncology hospital') || lowerMessage.includes('oncology centre') || lowerMessage.includes('oncology center')) && lowerMessage.includes('pune')) {
+    return "In Pune, notable oncology centers include Ruby Hall Clinic, Sahyadri Hospitals (Bund Garden or Magarpatta), and Jehangir Hospital. For the best care pathway, check each center's cancer specialty services and appointment availability.";
+  }
+
+  if (lowerMessage.includes('hospital') || lowerMessage.includes('centre') || lowerMessage.includes('center')) {
+    return "I can help you identify oncology and cancer care facilities. Please share the city or region you are looking for, and I can suggest appropriate centers and next steps.";
   }
   
   return "I'm here to help with oncology treatment recommendations and patient care coordination. How can I assist you today?";

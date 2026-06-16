@@ -4,7 +4,13 @@ import joblib
 
 import pandas as pd
 
-import shap
+try:
+    import shap
+    HAS_SHAP = True
+except Exception as e:
+    shap = None
+    HAS_SHAP = False
+    print(f"Warning: shap import failed; ML explainability disabled: {e}")
 
 
 
@@ -16,17 +22,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 try:
-    # Try new langchain-openai package first (recommended)
+    # Use langchain-openai package for OpenAI support.
     from langchain_openai import OpenAI
     HAS_LANGCHAIN = True
-except ImportError:
-    try:
-        # Fallback to old langchain.llms (deprecated but still works)
-        from langchain.llms import OpenAI
-        HAS_LANGCHAIN = True
-    except ImportError:
-        HAS_LANGCHAIN = False
-        OpenAI = None
+except ImportError as e:
+    HAS_LANGCHAIN = False
+    OpenAI = None
+    print(f"Warning: langchain_openai import failed; install langchain-openai to enable OpenAI support: {e}")
 
 
 
@@ -139,9 +141,18 @@ class OncoAIMLAdapter(MLService):
 
 
 
-        # SHAP explainer (loaded once)
+        # SHAP explainer (loaded once) if available
 
-        self.shap_explainer = shap.TreeExplainer(self.rf_model)
+        self.shap_explainer = None
+        self.shap_available = False
+        if HAS_SHAP:
+            try:
+                self.shap_explainer = shap.TreeExplainer(self.rf_model)
+                self.shap_available = True
+            except Exception as e:
+                print(f"Warning: shap explainer failed to initialize; explainability disabled: {e}")
+                self.shap_explainer = None
+                self.shap_available = False
 
 
 
@@ -215,6 +226,11 @@ class OncoAIMLAdapter(MLService):
     # --------------------------------------------------
 
     def _get_shap_explanation(self, input_df: pd.DataFrame, top_k: int = 4) -> Dict:
+        if not self.shap_available or self.shap_explainer is None:
+            return {
+                "positive_factors": {},
+                "negative_factors": {}
+            }
 
         X_trans = self.preprocessor.transform(input_df)
 
