@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Mail, Lock, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -32,6 +33,9 @@ export default function Login() {
     try {
       const success = await login(email, password);
       if (success) {
+        toast.success("Welcome back!", {
+          description: "Your clinical dashboard is ready.",
+        });
         navigate("/dashboard", { replace: true });
       } else {
         setError("Invalid email or password");

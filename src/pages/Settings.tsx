@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, User, Shield, Palette, Mail, Smartphone, Lock, CreditCard, Globe, Moon, Sun, Check, Save, AlertCircle, ArrowLeft, Stethoscope, FileText, Activity, Clock, Users, Brain, Eye, EyeOff, Monitor, Edit } from "lucide-react";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -207,9 +205,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <Header />
-      
+    <div className="bg-gradient-to-b from-background via-background to-muted/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative overflow-hidden py-12 lg:py-16 bg-gradient-to-br from-primary/10 via-background to-success/10 dark:from-primary/20 dark:via-slate-950 dark:to-success/20 border-b border-border/50 dark:border-slate-800">
@@ -1035,8 +1031,6 @@ export default function Settings() {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

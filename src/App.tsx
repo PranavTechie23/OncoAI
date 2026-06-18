@@ -29,12 +29,14 @@ const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import { routes } from "./lib/routes";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { DoctorLayout } from "./components/layout/DoctorLayout";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <DoctorLayout>{children}</DoctorLayout>;
 }
 
 function PublicRoute({ children }: { children: React.ReactElement }) {
