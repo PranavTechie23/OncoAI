@@ -1,7 +1,5 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -252,35 +250,30 @@ export default function PatientDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
-        <Header />
+      <div className="bg-gradient-to-b from-background via-background to-muted/20">
         <main className="flex-1">
           <div className="container py-12">
             <div className="text-center text-muted-foreground">Loading patient...</div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
-        <Header />
+      <div className="bg-gradient-to-b from-background via-background to-muted/20">
         <main className="flex-1">
           <div className="container py-12">
             <div className="text-center text-destructive">{error}</div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
-      <Header />
+    <div className="bg-gradient-to-b from-background via-background to-muted/20">
       <main className="flex-1">
         {/* Header Section */}
         <section className="py-8 bg-gradient-to-br from-primary/5 via-background to-success/5 border-b border-border">
@@ -615,7 +608,6 @@ export default function PatientDetail() {
           </div>
         </section>
       </main>
-      <Footer />
 
       {/* AI Recommendations Dialog */}
       <Dialog open={showAIRecommendations} onOpenChange={setShowAIRecommendations}>

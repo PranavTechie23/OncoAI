@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -392,8 +390,7 @@ export default function Patients() {
       : "from-background via-background to-muted/40 dark:from-slate-950 dark:via-slate-950 dark:to-emerald-950/40";
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
-      <Header />
+    <div className="bg-background text-foreground transition-colors">
       <main className="flex-1">
         {/* Hero: Patient Intelligence Space */}
         <section className="relative overflow-hidden border-b border-border/70 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
@@ -930,7 +927,6 @@ export default function Patients() {
           </div>
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

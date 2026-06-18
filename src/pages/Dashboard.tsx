@@ -1,9 +1,8 @@
 import { Suspense, lazy, useEffect, useState } from "react";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { Users, Activity, AlertCircle, Brain, Sparkles } from "lucide-react";
+import { Users, Activity, AlertCircle, Brain, Sparkles, CalendarDays } from "lucide-react";
 import { apiService } from "@/services/api";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { Skeleton } from "@/components/ui/skeleton";
 const PatientGrowthChart = lazy(() => import("@/components/dashboard/PatientGrowthChart").then((mod) => ({ default: mod.PatientGrowthChart })));
 const AIInsights = lazy(() => import("@/components/dashboard/AIInsights").then((mod) => ({ default: mod.AIInsights })));
 const RecentActivity = lazy(() => import("@/components/dashboard/RecentActivity").then((mod) => ({ default: mod.RecentActivity })));
@@ -15,6 +14,21 @@ import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
 
 import { useAuth } from "@/contexts/AuthContext";
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function formatToday(): string {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -91,18 +105,14 @@ export default function Dashboard() {
   }, [timeRange, dateRange]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#020617] text-foreground dark:text-slate-100 selection:bg-indigo-500/30 transition-colors duration-300">
+    <div className="relative text-foreground dark:text-slate-100 selection:bg-indigo-500/30">
       <div className="fixed inset-0 z-0 pointer-events-none">
-        {/* Light Mode Gradients */}
         <div className="absolute top-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-blue-100/80 dark:bg-indigo-500/10 blur-[100px] mix-blend-multiply dark:mix-blend-normal" />
         <div className="absolute bottom-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-indigo-100/80 dark:bg-violet-500/10 blur-[100px] mix-blend-multiply dark:mix-blend-normal" />
         <div className="absolute top-[20%] right-[20%] h-[300px] w-[300px] rounded-full bg-sky-100/60 dark:bg-blue-500/5 blur-[80px] mix-blend-multiply dark:mix-blend-normal" />
       </div>
 
-      <div className="relative z-10 flex flex-col min-h-screen">
-        <Header />
-        
-        <main className="flex-1 p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-8">
+      <main className="relative z-10 p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-8">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
@@ -111,10 +121,14 @@ export default function Dashboard() {
                 <span>AI-Powered Oncology Platform</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground dark:text-white">
-                Dashboard Overview
+                {getGreeting()}, {user?.name?.split(" ")[0] || "Doctor"}
               </h1>
-              <p className="mt-2 text-muted-foreground dark:text-slate-400">
-                Welcome back, {user?.name || "Doctor"}. Here's what's happening today.
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground dark:text-slate-400">
+                <span>Here's your clinical overview for today.</span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full">
+                  <CalendarDays className="h-3 w-3" />
+                  {formatToday()}
+                </span>
               </p>
             </div>
             
@@ -140,6 +154,12 @@ export default function Dashboard() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-36 rounded-2xl" />
+              ))
+            ) : (
+              <>
             <StatCard
               title="Total Patients"
               value={stats.totalPatients}
@@ -172,6 +192,8 @@ export default function Dashboard() {
               color="info"
               delay={0.3}
             />
+              </>
+            )}
           </div>
 
           {/* Main Content Grid */}
@@ -202,9 +224,6 @@ export default function Dashboard() {
             </Suspense>
           </div>
         </main>
-        
-        <Footer />
-      </div>
     </div>
   );
 }

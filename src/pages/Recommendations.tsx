@@ -1,361 +1,439 @@
-import { useEffect, useState } from "react";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { Card } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { StatCard } from "@/components/dashboard/StatCard";
 import { AIRecommendationsPanel } from "@/components/AIRecommendationsPanel";
-import { 
-  Brain, 
-  TrendingUp, 
-  AlertCircle, 
+import {
+  Brain,
+  AlertCircle,
   CheckCircle2,
   Sparkles,
   Target,
+  ArrowRight,
+  RefreshCw,
+  Clock,
   Zap,
   Shield,
-  Activity,
-  ArrowRight,
-  Star,
-  Lightbulb
 } from "lucide-react";
 import { apiService } from "@/services/api";
+import { cn } from "@/lib/utils";
+
+type Recommendation = {
+  id: number;
+  patientName: string;
+  cancerType?: string;
+  cancer_type?: string;
+  priority: string;
+  title: string;
+  description: string;
+  confidence: number;
+  impact?: string;
+  category: string;
+  benefits?: string[];
+  risks?: string[];
+  status: string;
+};
+
+type FilterKey = "all" | "pending" | "approved" | "high-priority";
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "high-priority", label: "High Priority" },
+];
+
+const HIGH_CONFIDENCE_THRESHOLD = 80;
+
+function getPriorityStyles(priority: string) {
+  switch (priority) {
+    case "High":
+      return "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-400/30";
+    case "Medium":
+      return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-400/30";
+    default:
+      return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-400/30";
+  }
+}
+
+function getStatusStyles(status: string) {
+  switch (status) {
+    case "Approved":
+      return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-400/30";
+    case "Implemented":
+      return "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-400/30";
+    default:
+      return "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-400/30";
+  }
+}
+
+function getConfidenceColor(confidence: number) {
+  if (confidence >= HIGH_CONFIDENCE_THRESHOLD) return "text-emerald-500";
+  if (confidence >= 60) return "text-amber-500";
+  return "text-rose-500";
+}
+
+function RecommendationRowSkeleton() {
+  return (
+    <div className="flex items-center gap-4 px-4 py-3.5 border-b border-slate-200/60 dark:border-white/5 last:border-0">
+      <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-3 w-72" />
+      </div>
+      <Skeleton className="h-6 w-14 rounded-full" />
+      <Skeleton className="h-6 w-20 rounded-full" />
+      <Skeleton className="h-8 w-8 rounded-lg" />
+    </div>
+  );
+}
+
+function EmptyState({ filter }: { filter: FilterKey }) {
+  const messages: Record<FilterKey, { title: string; description: string }> = {
+    all: {
+      title: "No AI recommendations yet",
+      description: "Recommendations appear when patient data is analyzed. Open a patient profile to generate insights.",
+    },
+    pending: {
+      title: "Nothing pending review",
+      description: "All recommendations have been reviewed. Check back after new patient analyses.",
+    },
+    approved: {
+      title: "No approved recommendations",
+      description: "Approved treatment plans will appear here once you sign off on AI suggestions.",
+    },
+    "high-priority": {
+      title: "No high-priority items",
+      description: "High-risk patients without urgent AI flags will show here when attention is needed.",
+    },
+  };
+
+  const { title, description } = messages[filter];
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 py-16 px-6 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+        <Brain className="h-7 w-7" />
+      </div>
+      <div className="space-y-1.5 max-w-sm">
+        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Recommendations() {
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [patientData, setPatientData] = useState<any>(null);
 
+  const loadRecommendations = async (isRefresh = false) => {
+    try {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      const resp: any = await apiService.listRecommendations();
+      const list = resp?.recommendations || resp?.data?.recommendations || [];
+      setRecommendations(list);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load recommendations");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const resp: any = await apiService.listRecommendations();
-        const list = resp?.recommendations || resp?.data?.recommendations || [];
-        if (!mounted) return;
-        setRecommendations(list);
-      } catch (e: any) {
-        if (mounted) setError(e?.message || "Failed to load recommendations");
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      if (!mounted) return;
+      await loadRecommendations();
     };
     load();
-    const id = window.setInterval(load, 15000);
+    const id = window.setInterval(() => loadRecommendations(true), 15000);
     return () => {
       mounted = false;
       window.clearInterval(id);
     };
   }, []);
 
-  const filteredRecommendations = selectedCategory === "All" 
-    ? recommendations 
-    : recommendations.filter(r => r.category === selectedCategory);
+  const stats = useMemo(() => {
+    const pending = recommendations.filter((r) => r.status === "Pending Review").length;
+    const approved = recommendations.filter((r) => r.status === "Approved").length;
+    const highConfidence = recommendations.filter((r) => (r.confidence || 0) >= HIGH_CONFIDENCE_THRESHOLD).length;
+    return {
+      total: recommendations.length,
+      pending,
+      approved,
+      highConfidence,
+    };
+  }, [recommendations]);
 
-  const stats = recommendations.length
-    ? {
-        total: recommendations.length,
-        highPriority: recommendations.filter((r) => r.priority === "High").length,
-        pending: recommendations.filter((r) => r.status === "Pending Review").length,
-        avgConfidence: Math.round(
-          recommendations.reduce((sum, r) => sum + (r.confidence || 0), 0) / recommendations.length
-        ),
-      }
-    : { total: 0, highPriority: 0, pending: 0, avgConfidence: 0 };
+  const filteredRecommendations = useMemo(() => {
+    switch (activeFilter) {
+      case "pending":
+        return recommendations.filter((r) => r.status === "Pending Review");
+      case "approved":
+        return recommendations.filter((r) => r.status === "Approved");
+      case "high-priority":
+        return recommendations.filter((r) => r.priority === "High");
+      default:
+        return recommendations;
+    }
+  }, [recommendations, activeFilter]);
 
-  const getPriorityColor = (priority: string) => {
-    switch(priority) {
-      case "High": return "bg-destructive/10 text-destructive border-destructive/30";
-      case "Medium": return "bg-warning/10 text-warning border-warning/30";
-      default: return "bg-success/10 text-success border-success/30";
+  const groupedRecommendations = useMemo(() => {
+    const pending = filteredRecommendations.filter((r) => r.status === "Pending Review");
+    const rest = filteredRecommendations.filter((r) => r.status !== "Pending Review");
+    if (activeFilter !== "all" || pending.length === 0) {
+      return [{ label: null as string | null, items: filteredRecommendations }];
+    }
+    return [
+      { label: "Pending Review", items: pending },
+      { label: "Reviewed", items: rest },
+    ].filter((g) => g.items.length > 0);
+  }, [filteredRecommendations, activeFilter]);
+
+  const filterCounts = useMemo(
+    () => ({
+      all: recommendations.length,
+      pending: recommendations.filter((r) => r.status === "Pending Review").length,
+      approved: recommendations.filter((r) => r.status === "Approved").length,
+      "high-priority": recommendations.filter((r) => r.priority === "High").length,
+    }),
+    [recommendations]
+  );
+
+  const openDetails = async (rec: Recommendation) => {
+    try {
+      setSelectedPatientId(rec.id);
+      const patientResponse = await apiService.getPatient(rec.id);
+      const patient = patientResponse?.patient || patientResponse?.data?.patient || patientResponse;
+      setPatientData(patient);
+      setShowDetailsDialog(true);
+    } catch (err) {
+      console.error("Error fetching patient data:", err);
+      setSelectedPatientId(rec.id);
+      setShowDetailsDialog(true);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case "Approved": return "bg-success/10 text-success border-success/30";
-      case "Implemented": return "bg-primary/10 text-primary border-primary/30";
-      default: return "bg-muted/50 text-muted-foreground border-border/50";
-    }
-  };
+  const getCancerLabel = (rec: Recommendation) =>
+    rec.cancerType || rec.cancer_type || rec.category || "Treatment";
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <Header />
+    <div className="bg-background text-foreground transition-colors">
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden py-12 lg:py-16 bg-gradient-to-br from-primary/10 via-background to-success/10 dark:from-primary/20 dark:via-slate-950 dark:to-success/20 border-b border-border/50 dark:border-slate-800">
-          <div className="absolute inset-0 opacity-40 dark:opacity-30">
-            <div className="absolute top-20 right-20 w-96 h-96 bg-primary/20 dark:bg-primary/30 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-10 left-20 w-80 h-80 bg-success/20 dark:bg-success/30 rounded-full blur-3xl animate-pulse delay-1000" />
+        {/* Hero */}
+        <section className="relative overflow-hidden border-b border-border/70 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -top-48 -left-32 h-96 w-96 bg-emerald-300/25 dark:bg-emerald-500/20 blur-3xl rounded-full" />
+            <div className="absolute -bottom-48 -right-16 h-[26rem] w-[26rem] bg-violet-300/25 dark:bg-violet-500/25 blur-3xl rounded-full" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(52,211,153,0.18),transparent_55%),radial-gradient(circle_at_80%_100%,rgba(129,140,248,0.28),transparent_60%)] opacity-80" />
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
           </div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(120,119,198,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_50%_30%,rgba(120,119,198,0.15),transparent_50%)]" />
-          <div className="container relative z-10">
-            <div className="max-w-4xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 dark:from-primary/40 dark:to-primary/20 flex items-center justify-center shadow-lg">
-                  <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+
+          <div className="relative z-10 container py-10 md:py-14">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-4 max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/15 px-3 py-1 backdrop-blur-md shadow-sm">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" />
+                  <span className="text-[11px] font-semibold tracking-wide text-emerald-800 dark:text-emerald-50 uppercase">
+                    AI Clinical Insights
+                  </span>
                 </div>
-                <Badge className="bg-primary/10 dark:bg-primary/20 text-primary border-primary/30 px-4 py-1 text-sm">
-                  AI-Powered Insights
-                </Badge>
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight">
+                  <span className="bg-gradient-to-r from-slate-900 via-emerald-600 to-violet-600 dark:from-foreground dark:via-emerald-500 dark:to-violet-500 bg-clip-text text-transparent">
+                    AI treatment recommendations
+                  </span>
+                </h1>
+                <p className="text-sm md:text-base text-slate-600 dark:text-muted-foreground max-w-2xl bg-white/70 dark:bg-transparent rounded-2xl px-3 py-2 shadow-sm backdrop-blur">
+                  Review AI-generated treatment plans across your patient panel. Prioritize pending items,
+                  validate confidence scores, and open full clinical analysis in one click.
+                </p>
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
-                <span className="bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent">
-                  AI Treatment Recommendations
-                </span>
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-                Personalized treatment suggestions powered by advanced machine learning algorithms 
-                analyzing patient data, genomic profiles, and clinical outcomes.
-              </p>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-full gap-1.5 text-xs self-start lg:self-auto"
+                onClick={() => loadRecommendations(true)}
+                disabled={refreshing}
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+                Refresh
+              </Button>
             </div>
           </div>
         </section>
 
-        {/* Stats Section */}
-        <section className="py-12">
-          <div className="container">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              <Card className="p-6 bg-card/50 backdrop-blur-sm shadow-lg dark:shadow-xl hover:shadow-2xl dark:hover:shadow-2xl transition-all duration-500 border border-border/50 dark:border-slate-700/50 group hover:-translate-y-2 hover:border-primary/50 dark:hover:border-primary/60 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent dark:from-primary/30 dark:via-primary/20 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-lg">
-                      <Brain className="h-7 w-7 text-primary" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">Total Recommendations</p>
-                  <p className="text-4xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">{stats.total}</p>
-                </div>
-              </Card>
+        {/* Content */}
+        <section className="relative py-8 md:py-10 bg-gradient-to-b from-background via-background to-muted/30 dark:from-slate-950 dark:via-slate-950 dark:to-emerald-950/20">
+          <div className="absolute inset-0 pointer-events-none opacity-40">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(148,163,184,0.12),transparent_60%),radial-gradient(circle_at_100%_100%,rgba(129,140,248,0.15),transparent_60%)]" />
+          </div>
 
-              <Card className="p-6 bg-card/50 backdrop-blur-sm shadow-lg dark:shadow-xl hover:shadow-2xl dark:hover:shadow-2xl transition-all duration-500 border border-border/50 dark:border-slate-700/50 group hover:-translate-y-2 hover:border-destructive/50 dark:hover:border-destructive/60 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-destructive/20 via-destructive/10 to-transparent dark:from-destructive/30 dark:via-destructive/20 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-lg">
-                      <AlertCircle className="h-7 w-7 text-destructive" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">High Priority</p>
-                  <p className="text-4xl font-bold text-foreground group-hover:text-destructive transition-colors duration-300">{stats.highPriority}</p>
-                </div>
-              </Card>
+          <div className="relative z-10 container space-y-8">
+            {error && (
+              <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+            )}
 
-              <Card className="p-6 bg-card/50 backdrop-blur-sm shadow-lg dark:shadow-xl hover:shadow-2xl dark:hover:shadow-2xl transition-all duration-500 border border-border/50 dark:border-slate-700/50 group hover:-translate-y-2 hover:border-warning/50 dark:hover:border-warning/60 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-warning/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-warning/20 via-warning/10 to-transparent dark:from-warning/30 dark:via-warning/20 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-lg">
-                      <Target className="h-7 w-7 text-warning" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">Pending Review</p>
-                  <p className="text-4xl font-bold text-foreground group-hover:text-warning transition-colors duration-300">{stats.pending}</p>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-card/50 backdrop-blur-sm shadow-lg dark:shadow-xl hover:shadow-2xl dark:hover:shadow-2xl transition-all duration-500 border border-border/50 dark:border-slate-700/50 group hover:-translate-y-2 hover:border-success/50 dark:hover:border-success/60 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-success/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-success/20 via-success/10 to-transparent dark:from-success/30 dark:via-success/20 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-lg">
-                      <TrendingUp className="h-7 w-7 text-success" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">Avg Confidence</p>
-                  <p className="text-4xl font-bold text-foreground group-hover:text-success transition-colors duration-300">{stats.avgConfidence}%</p>
-                </div>
-              </Card>
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)
+              ) : (
+                <>
+                  <StatCard title="Pending Review" value={stats.pending} icon={Clock} color="warning" delay={0} />
+                  <StatCard title="Approved" value={stats.approved} icon={CheckCircle2} color="success" delay={0.05} />
+                  <StatCard title="High Confidence" value={stats.highConfidence} icon={Target} color="info" delay={0.1} />
+                  <StatCard title="Total Recommendations" value={stats.total} icon={Brain} color="primary" delay={0.15} />
+                </>
+              )}
             </div>
 
-            {/* Filter Tabs */}
-            <Tabs defaultValue="All" className="mb-12">
-              <TabsList className="grid w-full grid-cols-5 bg-muted/50 dark:bg-slate-900/50 p-1 rounded-xl h-auto">
-                <TabsTrigger 
-                  value="All" 
-                  onClick={() => setSelectedCategory("All")}
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg transition-all duration-300 py-3"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="Treatment" 
-                  onClick={() => setSelectedCategory("Treatment")}
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg transition-all duration-300 py-3"
-                >
-                  Treatment
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="Dosage" 
-                  onClick={() => setSelectedCategory("Dosage")}
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg transition-all duration-300 py-3"
-                >
-                  Dosage
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="Monitoring" 
-                  onClick={() => setSelectedCategory("Monitoring")}
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg transition-all duration-300 py-3"
-                >
-                  Monitoring
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="Other" 
-                  onClick={() => setSelectedCategory("Other")}
-                  className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg transition-all duration-300 py-3"
-                >
-                  Other
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* Pill filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex rounded-full bg-white/70 border border-slate-200 shadow-sm p-1 dark:bg-slate-900/80 dark:border-slate-700/70">
+                {FILTERS.map((filter) => (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    onClick={() => setActiveFilter(filter.key)}
+                    className={cn(
+                      "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+                      activeFilter === filter.key
+                        ? "bg-emerald-500/20 text-emerald-800 border border-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.25)] dark:text-emerald-50"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {filter.label}
+                    {!loading && (
+                      <span className="ml-1.5 text-[10px] opacity-70">({filterCounts[filter.key]})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {loading ? "Loading…" : `${filteredRecommendations.length} shown`}
+              </span>
+            </div>
 
-            {/* Recommendations Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {filteredRecommendations.map((rec, index) => (
-                <Card 
-                  key={rec.id}
-                  className="p-8 bg-card/50 backdrop-blur-sm shadow-lg dark:shadow-xl hover:shadow-2xl dark:hover:shadow-2xl transition-all duration-500 border border-border/50 dark:border-slate-700/50 group hover:-translate-y-2 hover:border-primary/50 dark:hover:border-primary/60 relative overflow-hidden"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <div className="relative z-10">
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Badge variant="outline" className={getPriorityColor(rec.priority)}>
-                            {rec.priority} Priority
-                          </Badge>
-                          <Badge variant="outline" className={getStatusColor(rec.status)}>
-                            {rec.status}
-                          </Badge>
-                        </div>
-                        <h3 className="text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors duration-300">
-                          {rec.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1">
-                            <Lightbulb className="h-4 w-4" />
-                            For: <span className="font-medium text-foreground">{rec.patientName}</span>
-                          </span>
-                        </p>
-                      </div>
-                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent dark:from-primary/30 dark:via-primary/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 shadow-lg">
-                        <Zap className="h-6 w-6 text-primary" />
-                      </div>
-                    </div>
-
-                    <p className="text-muted-foreground leading-relaxed mb-6">{rec.description}</p>
-
-                    {/* Confidence Score */}
-                    <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/10 border border-primary/10 dark:border-primary/20">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          <Target className="h-4 w-4 text-primary" />
-                          AI Confidence Score
+            {/* Recommendation list */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="overflow-hidden rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/80 dark:bg-white/[0.03] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none backdrop-blur-xl"
+            >
+              {loading ? (
+                <div>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <RecommendationRowSkeleton key={i} />
+                  ))}
+                </div>
+              ) : filteredRecommendations.length === 0 ? (
+                <EmptyState filter={activeFilter} />
+              ) : (
+                groupedRecommendations.map((group) => (
+                  <div key={group.label ?? "all"}>
+                    {group.label && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50/80 dark:bg-white/[0.02] border-b border-slate-200/60 dark:border-white/5">
+                        <Zap className="h-3.5 w-3.5 text-emerald-500" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {group.label}
                         </span>
-                        <span className="text-lg font-bold text-primary">{rec.confidence}%</span>
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-slate-200 dark:border-white/10">
+                          {group.items.length}
+                        </Badge>
                       </div>
-                      <Progress value={rec.confidence} className="h-2.5" />
-                    </div>
-
-                    {/* Benefits */}
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="h-8 w-8 rounded-lg bg-success/10 dark:bg-success/20 flex items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4 text-success" />
-                        </div>
-                        <span className="text-sm font-bold text-foreground">Key Benefits</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {rec.benefits.map((benefit, idx) => (
-                          <li key={idx} className="text-sm text-muted-foreground flex items-start gap-3 p-2 rounded-lg hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors duration-300">
-                            <Star className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                            <span>{benefit}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Risks */}
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="h-8 w-8 rounded-lg bg-warning/10 dark:bg-warning/20 flex items-center justify-center">
-                          <AlertCircle className="h-4 w-4 text-warning" />
-                        </div>
-                        <span className="text-sm font-bold text-foreground">Considerations</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {rec.risks.map((risk, idx) => (
-                          <li key={idx} className="text-sm text-muted-foreground flex items-start gap-3 p-2 rounded-lg hover:bg-muted/30 dark:hover:bg-slate-800/30 transition-colors duration-300">
-                            <Shield className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
-                            <span>{risk}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-6 border-t border-border/50 dark:border-slate-700/50">
-                      <Button 
-                        className="flex-1 gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 group/btn"
-                        onClick={async () => {
-                          try {
-                            setSelectedPatientId(rec.id);
-                            // Fetch patient data for the recommendations panel
-                            const patientResponse = await apiService.getPatient(rec.id);
-                            const patient = patientResponse?.patient || patientResponse?.data?.patient || patientResponse;
-                            setPatientData(patient);
-                            setShowDetailsDialog(true);
-                          } catch (err) {
-                            console.error("Error fetching patient data:", err);
-                            // Still open dialog even if patient fetch fails
-                            setSelectedPatientId(rec.id);
-                            setShowDetailsDialog(true);
-                          }
-                        }}
+                    )}
+                    {group.items.map((rec, index) => (
+                      <motion.button
+                        key={rec.id}
+                        type="button"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.03 }}
+                        onClick={() => openDetails(rec)}
+                        className="w-full flex items-center gap-3 sm:gap-4 px-4 py-3.5 border-b border-slate-200/60 dark:border-white/5 last:border-0 text-left hover:bg-emerald-500/[0.04] dark:hover:bg-emerald-500/[0.06] transition-colors group"
                       >
-                        Review Details
-                        <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        className="hover:bg-primary/10 hover:border-primary/50 hover:text-primary hover:scale-110 transition-all duration-300"
-                      >
-                        <Activity className="h-4 w-4" />
-                      </Button>
-                    </div>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/15 to-violet-500/10 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                          {rec.patientName?.charAt(0) || "?"}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span className="text-sm font-semibold text-slate-900 dark:text-slate-50 truncate">
+                              {rec.patientName}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">·</span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {getCancerLabel(rec)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate mt-0.5">
+                            {rec.title}
+                          </p>
+                        </div>
+
+                        <div className="hidden sm:flex flex-col items-end gap-0.5 shrink-0 w-14">
+                          <span className={cn("text-sm font-bold tabular-nums", getConfidenceColor(rec.confidence))}>
+                            {rec.confidence}%
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">confidence</span>
+                        </div>
+
+                        <Badge
+                          variant="outline"
+                          className={cn("hidden md:inline-flex shrink-0 text-[10px] font-semibold", getPriorityStyles(rec.priority))}
+                        >
+                          {rec.priority}
+                        </Badge>
+
+                        <Badge
+                          variant="outline"
+                          className={cn("shrink-0 text-[10px] font-semibold", getStatusStyles(rec.status))}
+                        >
+                          {rec.status === "Pending Review" ? "Pending" : rec.status}
+                        </Badge>
+
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-white/5 group-hover:border-emerald-400/40 group-hover:bg-emerald-500/10 transition-colors">
+                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
+                        </div>
+                      </motion.button>
+                    ))}
                   </div>
-                </Card>
-              ))}
-            </div>
+                ))
+              )}
+            </motion.div>
 
-            {filteredRecommendations.length === 0 && (
-              <Card className="p-16 text-center bg-card/50 backdrop-blur-sm shadow-lg border border-border/50 dark:border-slate-700/50">
-                <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-muted/50 dark:bg-slate-800/50 mb-6">
-                  <Brain className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-lg font-medium text-foreground mb-2">No recommendations found</p>
-                <p className="text-muted-foreground">Try selecting a different category to view recommendations.</p>
-              </Card>
+            {/* Quick legend */}
+            {!loading && filteredRecommendations.length > 0 && (
+              <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Shield className="h-3 w-3 text-emerald-500" />
+                  High confidence ≥ {HIGH_CONFIDENCE_THRESHOLD}%
+                </span>
+                <span>Click any row to open full AI analysis</span>
+              </div>
             )}
           </div>
         </section>
       </main>
-      <Footer />
 
-      {/* AI Recommendations Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
