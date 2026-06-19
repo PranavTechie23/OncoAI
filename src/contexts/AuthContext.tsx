@@ -6,12 +6,21 @@ interface User {
   email: string;
   name: string;
   role?: string;
+  phone?: string;
+  institution?: string;
+  department?: string;
+  license?: string;
+  npi?: string;
+  specialty?: string;
+  subspecialty?: string;
+  avatar_url?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -71,19 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.debug('[Auth] token saved length:', (localStorage.getItem('oncoai_token') || '').length);
         return true;
       }
+
       return false;
     } catch (error: any) {
       console.error("Login error:", error);
-      // Fallback to demo mode if backend is not available
-      if (email && password) {
-        const newUser = {
-          email,
-          name: email.split("@")[0],
-        };
-        setUser(newUser);
-        localStorage.setItem("oncoai_user", JSON.stringify(newUser));
-        return true;
+      const message = String(error?.message || '').toLowerCase();
+
+      if (message.includes('failed to fetch') || message.includes('backend server may not be running')) {
+        // Preserve the error for display in the UI.
+        return false;
       }
+
+      if (message.includes('invalid credentials') || message.includes('email and password are required')) {
+        return false;
+      }
+
       return false;
     } finally {
       setLoading(false);
@@ -96,8 +107,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("oncoai_token");
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem("oncoai_user", JSON.stringify(next));
+      } catch {
+        // ignore quota errors
+      }
+      return next;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isAuthenticated: !!user, loading }}>
       {children}
     </AuthContext.Provider>
   );
