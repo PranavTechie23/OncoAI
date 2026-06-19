@@ -198,7 +198,19 @@ def login():
             return jsonify({'message': 'Email and password are required'}), 400
         
         user = User.query.filter_by(email=data['email']).first()
-        
+
+        if not user:
+            # Auto-create the demo account during development if it is missing.
+            if data['email'] == 'demo@oncoai.com' and data['password'] == 'demo123':
+                user = User(
+                    email='demo@oncoai.com',
+                    name='Demo Doctor',
+                    role='doctor'
+                )
+                user.set_password('demo123')
+                db.session.add(user)
+                db.session.commit()
+
         if not user or not user.check_password(data['password']):
             return jsonify({'message': 'Invalid credentials'}), 401
         

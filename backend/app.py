@@ -603,6 +603,8 @@ def dashboard_summary():
             'risk_level': p.risk_level,
             'status': p.status or p.risk_level,
             'avatar_url': p.avatar_url,
+            'cancer_type': p.cancer_type,
+            'stage': p.stage,
             'change': 0,
         } for p in top_patients_query]
 
@@ -656,6 +658,164 @@ def dashboard_summary():
         except Exception:
             pass
 
+        def _pct_trend(current, previous, lower_is_better=False):
+            if previous == 0:
+                value = 100.0 if current > 0 else 0.0
+            else:
+                value = round(abs((current - previous) / previous) * 100, 1)
+            is_positive = current >= previous
+            if lower_is_better:
+                is_positive = current <= previous
+            return {'value': value, 'is_positive': is_positive}
+
+        period_len = now - start_date
+        prev_start = start_date - period_len
+
+        curr_new_patients = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.created_at >= start_date,
+        ).count()
+        prev_new_patients = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.created_at >= prev_start,
+            Patient.created_at < start_date,
+        ).count()
+
+        curr_treatments = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.treatment_protocol.isnot(None),
+            Patient.updated_at >= start_date,
+        ).count()
+        prev_treatments = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.treatment_protocol.isnot(None),
+            Patient.updated_at >= prev_start,
+            Patient.updated_at < start_date,
+        ).count()
+
+        curr_high_risk = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.risk_level == 'high',
+            Patient.updated_at >= start_date,
+        ).count()
+        prev_high_risk = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.risk_level == 'high',
+            Patient.updated_at >= prev_start,
+            Patient.updated_at < start_date,
+        ).count()
+
+        curr_ai = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.ml_recommendations.isnot(None),
+            Patient.updated_at >= start_date,
+        ).count()
+        prev_ai = Patient.query.filter(
+            Patient.doctor_id == current_user.id,
+            Patient.ml_recommendations.isnot(None),
+            Patient.updated_at >= prev_start,
+            Patient.updated_at < start_date,
+        ).count()
+
+        trends = {
+            'total_patients': _pct_trend(curr_new_patients, prev_new_patients),
+            'active_treatments': _pct_trend(curr_treatments, prev_treatments),
+            'high_risk_patients': _pct_trend(curr_high_risk, prev_high_risk, lower_is_better=True),
+            'ai_recommendations': _pct_trend(curr_ai, prev_ai),
+        }
+
+        upcoming_appointments = []
+        try:
+            upcoming_rows = (
+                Appointment.query
+                .filter(
+                    Appointment.doctor_id == current_user.id,
+                    Appointment.appointment_date >= now,
+                )
+                .order_by(Appointment.appointment_date.asc())
+                .limit(5)
+                .all()
+            )
+            for apt in upcoming_rows:
+                if (apt.status or '').lower() in ('cancelled', 'completed'):
+                    continue
+                upcoming_appointments.append({
+                    'id': apt.id,
+                    'patient_id': apt.patient_id,
+                    'patient_name': apt.patient.name if apt.patient else 'Unknown',
+                    'appointment_date': apt.appointment_date.isoformat() if apt.appointment_date else None,
+                    'appointment_type': apt.appointment_type,
+                    'status': apt.status,
+                })
+                if len(upcoming_appointments) >= 4:
+                    break
+        except Exception:
+            upcoming_appointments = []
+
+        ai_insights = []
+        try:
+            if high_risk_patients >= 3:
+                ai_insights.append({
+                    'id': 'multi-high-risk',
+                    'type': 'alert',
+                    'content': f'{high_risk_patients} patients are currently classified as high risk and need closer monitoring.',
+                    'confidence': 90,
+                })
+
+            high_risk_rows = (
+                Patient.query
+                .filter_by(doctor_id=current_user.id, risk_level='high')
+                .order_by(Patient.risk_score.desc())
+                .limit(3)
+                .all()
+            )
+            for patient in high_risk_rows:
+                rec = patient.get_ml_recommendations() if hasattr(patient, 'get_ml_recommendations') else {}
+                if rec:
+                    ai_insights.append({
+                        'id': f'rec-{patient.id}',
+                        'type': 'recommendation',
+                        'patient_name': patient.name,
+                        'content': rec.get('summary', rec.get('title', 'Review AI treatment plan')),
+                        'confidence': int(rec.get('confidence', patient.risk_score or 75)),
+                        'patient_id': patient.id,
+                    })
+                else:
+                    ai_insights.append({
+                        'id': f'alert-{patient.id}',
+                        'type': 'alert',
+                        'patient_name': patient.name,
+                        'content': f'High risk score ({int(patient.risk_score or 0)}). Review recommended.',
+                        'confidence': int(patient.risk_score or 85),
+                        'patient_id': patient.id,
+                    })
+
+            rec_patients = (
+                Patient.query
+                .filter(
+                    Patient.doctor_id == current_user.id,
+                    Patient.ml_recommendations.isnot(None),
+                    Patient.risk_level != 'high',
+                )
+                .order_by(Patient.risk_score.desc())
+                .limit(2)
+                .all()
+            )
+            for patient in rec_patients:
+                rec = patient.get_ml_recommendations()
+                if not rec:
+                    continue
+                ai_insights.append({
+                    'id': f'pred-{patient.id}',
+                    'type': 'prediction',
+                    'patient_name': patient.name,
+                    'content': rec.get('summary', 'Positive treatment response predicted based on clinical markers.'),
+                    'confidence': int(rec.get('confidence', patient.risk_score or 70)),
+                    'patient_id': patient.id,
+                })
+        except Exception:
+            ai_insights = ai_insights[:4]
+
         return jsonify({
             'total_patients': total_patients,
             'active_treatments': active_treatments,
@@ -664,6 +824,9 @@ def dashboard_summary():
             'monthly_stats': monthly_stats,
             'top_patients': top_patients,
             'recent_activities': recent_activities,
+            'trends': trends,
+            'upcoming_appointments': upcoming_appointments,
+            'ai_insights': ai_insights[:4],
         }), 200
     except Unauthorized as ue:
         return jsonify({'message': str(ue)}), 401

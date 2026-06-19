@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -8,6 +8,8 @@ import {
   Settings,
   Stethoscope,
   LogOut,
+  User,
+  ChevronUp,
 } from "lucide-react";
 import {
   Sidebar,
@@ -21,11 +23,23 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -45,8 +59,11 @@ export function DoctorSidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { state: sidebarState, isMobile } = useSidebar();
+  const showNavTooltips = sidebarState === "collapsed" && !isMobile;
 
-  const initials = (user?.name || user?.email || "DR")
+  const userDisplayName = typeof user?.name === 'string' ? user.name : typeof user?.email === 'string' ? user.email : 'DR';
+  const initials = userDisplayName
     .split(" ")
     .map((part) => part[0])
     .join("")
@@ -63,9 +80,9 @@ export function DoctorSidebar() {
     <Sidebar
       collapsible="icon"
       className={cn(
-        "border-r border-slate-200/60 dark:border-white/5",
+        "border-r border-border dark:border-white/5",
         "[&_[data-sidebar=sidebar]]:relative [&_[data-sidebar=sidebar]]:overflow-hidden",
-        "[&_[data-sidebar=sidebar]]:bg-white/85 [&_[data-sidebar=sidebar]]:backdrop-blur-xl",
+        "[&_[data-sidebar=sidebar]]:bg-sidebar [&_[data-sidebar=sidebar]]:backdrop-blur-xl",
         "dark:[&_[data-sidebar=sidebar]]:bg-slate-950/85",
       )}
     >
@@ -79,7 +96,7 @@ export function DoctorSidebar() {
         <div className="absolute top-1/2 left-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/5 blur-2xl" />
       </div>
 
-      <SidebarHeader className="relative z-10 border-b border-slate-200/60 dark:border-white/5">
+      <SidebarHeader className="relative z-10 border-b border-border dark:border-white/5">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild tooltip="OncoAI Dashboard">
@@ -144,44 +161,86 @@ export function DoctorSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="relative z-10 border-t border-slate-200/60 dark:border-white/5">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <div className="mx-1 rounded-2xl border border-slate-200/60 bg-white/50 p-1 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04] group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0">
-              <SidebarMenuButton
-                size="lg"
-                className="cursor-default rounded-xl hover:bg-transparent group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2"
-              >
-                <Avatar className="size-8 ring-2 ring-emerald-400/20">
-                  <AvatarFallback className="bg-gradient-to-br from-emerald-500/20 to-violet-500/20 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                  <span className="truncate font-medium">
-                    {user?.name || "Doctor"}
-                  </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {user?.email}
-                  </span>
-                </div>
-              </SidebarMenuButton>
-            </div>
-          </SidebarMenuItem>
-          <SidebarSeparator className="mx-2 bg-slate-200/60 dark:bg-white/10" />
-          <SidebarMenuItem>
-            <SidebarMenuButton
+      <SidebarFooter className="relative z-10 border-t border-border p-2 dark:border-white/5">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            {showNavTooltips ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <SidebarFooterProfileButton initials={initials} user={user} />
+                </TooltipTrigger>
+                <TooltipContent side="right" align="center" sideOffset={8} className="z-[100] font-medium">
+                  {user?.name || "Doctor"}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <SidebarFooterProfileButton initials={initials} user={user} />
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="w-56 rounded-xl border-border dark:border-white/10"
+          >
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium">{user?.name || "Doctor"}</span>
+                <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/settings" className="cursor-pointer">
+                <User className="mr-2 size-4" />
+                Profile & settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
               onClick={handleLogout}
-              tooltip="Sign out"
-              className="rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              className="cursor-pointer text-destructive focus:text-destructive"
             >
-              <LogOut className="size-4" />
-              <span>Sign out</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+              <LogOut className="mr-2 size-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
       <SidebarRail className="hover:after:bg-emerald-400/30" />
     </Sidebar>
+  );
+}
+
+function SidebarFooterProfileButton({
+  initials,
+  user,
+}: {
+  initials: string;
+  user: ReturnType<typeof useAuth>["user"];
+}) {
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/50 p-2 text-left transition hover:bg-muted/80 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
+    >
+      <div className="relative shrink-0">
+        <Avatar className="size-8 ring-2 ring-emerald-400/25">
+          <AvatarFallback className="bg-gradient-to-br from-emerald-500/25 to-violet-500/25 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background bg-emerald-500 dark:border-slate-950" />
+      </div>
+      <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+        <div className="truncate text-sm font-medium leading-tight">
+          {user?.name || "Doctor"}
+        </div>
+        <div className="truncate text-[11px] text-muted-foreground">
+          {user?.specialty || user?.email || "Clinical portal"}
+        </div>
+      </div>
+      <ChevronUp className="size-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+    </button>
   );
 }
