@@ -102,9 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem("oncoai_user");
-    localStorage.removeItem("oncoai_token");
+    try {
+      localStorage.removeItem("oncoai_user");
+      localStorage.removeItem("oncoai_token");
+    } catch {
+      // ignore storage errors
+    }
+    window.location.replace("/");
   };
 
   const updateUser = (updates: Partial<User>) => {

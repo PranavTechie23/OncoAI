@@ -40,7 +40,6 @@ export function Header() {
   const handleLogout = () => {
     logout();
     toast.success("Logged out successfully");
-    navigate("/login");
   };
 
   return (

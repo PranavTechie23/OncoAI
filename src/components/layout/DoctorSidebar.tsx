@@ -73,7 +73,6 @@ export function DoctorSidebar() {
   const handleLogout = () => {
     logout();
     toast.success("Logged out successfully");
-    navigate("/login");
   };
 
   return (
@@ -162,50 +161,60 @@ export function DoctorSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="relative z-10 border-t border-border p-2 dark:border-white/5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            {showNavTooltips ? (
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <SidebarFooterProfileButton initials={initials} user={user} />
-                </TooltipTrigger>
-                <TooltipContent side="right" align="center" sideOffset={8} className="z-[100] font-medium">
-                  {user?.name || "Doctor"}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <SidebarFooterProfileButton initials={initials} user={user} />
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="top"
-            align="start"
-            sideOffset={8}
-            className="w-56 rounded-xl border-border dark:border-white/10"
-          >
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium">{user?.name || "Doctor"}</span>
-                <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/settings" className="cursor-pointer">
-                <User className="mr-2 size-4" />
-                Profile & settings
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={handleLogout}
-              className="cursor-pointer text-destructive focus:text-destructive"
+        <div className="space-y-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {showNavTooltips ? (
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <SidebarFooterProfileButton initials={initials} user={user} />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center" sideOffset={8} className="z-[100] font-medium">
+                    {user?.name || "Doctor"}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <SidebarFooterProfileButton initials={initials} user={user} />
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              sideOffset={8}
+              className="w-56 rounded-xl border-border dark:border-white/10"
             >
-              <LogOut className="mr-2 size-4" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium">{user?.name || "Doctor"}</span>
+                  <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/settings" className="cursor-pointer">
+                  <User className="mr-2 size-4" />
+                  Profile & settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="mr-2 size-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 rounded-xl border border-rose-200/40 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-500/20 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/15 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          >
+            <LogOut className="size-4" />
+            <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+          </button>
+        </div>
       </SidebarFooter>
       <SidebarRail className="hover:after:bg-emerald-400/30" />
     </Sidebar>

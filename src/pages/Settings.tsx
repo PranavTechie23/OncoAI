@@ -326,16 +326,18 @@ export default function Settings() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 px-2">
-                  <img
-                    src={profileUser.avatar}
-                    alt=""
-                    className="h-9 w-9 rounded-lg ring-1 ring-border"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-medium">{profileUser.name}</div>
-                    <div className="truncate text-[12px] text-muted-foreground">
-                      {profileUser.specialty || "Doctor"}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 px-2">
+                    <img
+                      src={profileUser.avatar}
+                      alt=""
+                      className="h-9 w-9 rounded-lg ring-1 ring-border"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium">{profileUser.name}</div>
+                      <div className="truncate text-[12px] text-muted-foreground">
+                        {profileUser.specialty || "Doctor"}
+                      </div>
                     </div>
                   </div>
                 </div>

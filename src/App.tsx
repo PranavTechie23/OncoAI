@@ -100,7 +100,7 @@ const App = () => (
                   }
                 />
                 <Route path="/" element={<Index />} />
-                <Route path="/about" element={<About />} />
+
               <Route
                 path="/dashboard"
                 element={
