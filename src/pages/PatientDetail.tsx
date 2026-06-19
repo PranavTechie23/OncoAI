@@ -1,60 +1,209 @@
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { 
+import { Skeleton } from "@/components/ui/skeleton";
+import {
   ArrowLeft,
   Calendar,
   FileText,
   Activity,
   TrendingUp,
-  AlertCircle,
-  CheckCircle2,
   Clock,
   User,
-  Heart,
   Dna,
   Pill,
   Stethoscope,
   Download,
   Edit,
   Brain,
-  Sparkles,
   Camera,
-  Upload,
   X,
-  Maximize2
+  Maximize2,
+  Mail,
+  Phone,
+  MapPin,
+  AlertCircle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { AIRecommendationsPanel } from "@/components/AIRecommendationsPanel";
 import { OutcomeTrackingTab } from "@/components/OutcomeTrackingTab";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+import { apiService } from "@/services/api";
+import { cn } from "@/lib/utils";
 
-// Patient detail loads data from backend; no local mock fallbacks
+type ClinicalData = {
+  notes?: string;
+  genomics?: {
+    mutations?: string[];
+    biomarkers?: { "PD-L1"?: number; TMB?: number; MSI_Status?: string };
+  };
+  histopathology?: {
+    grade?: string;
+    ki67?: number;
+    tumor_size_cm?: number;
+    lymph_nodes_involved?: number;
+  };
+  comorbidities?: string[];
+  comorbidity_score?: number;
+  medications?: Array<{ name: string; dosage?: string; frequency?: string; status?: string }>;
+  treatment_history?: Array<{ date?: string; name?: string; type?: string; status?: string; notes?: string }>;
+};
+
+function parseJsonField<T>(value: unknown, fallback: T): T {
+  if (!value) return fallback;
+  if (typeof value === "object") return value as T;
+  try {
+    return JSON.parse(String(value)) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function getRiskScore(patient: Record<string, unknown> | null): number {
+  return Number(patient?.risk_score ?? patient?.riskScore ?? 0);
+}
+
+function getRiskLevel(score: number) {
+  if (score <= 50)
+    return {
+      label: "Low",
+      textClass: "text-emerald-700 dark:text-emerald-400",
+      bgLightClass: "bg-emerald-500/10",
+      borderClass: "border-emerald-500/30",
+      barClass: "bg-emerald-500",
+    };
+  if (score <= 75)
+    return {
+      label: "Medium",
+      textClass: "text-amber-700 dark:text-amber-400",
+      bgLightClass: "bg-amber-500/10",
+      borderClass: "border-amber-500/30",
+      barClass: "bg-amber-400",
+    };
+  return {
+    label: "High",
+    textClass: "text-rose-700 dark:text-rose-400",
+    bgLightClass: "bg-rose-500/10",
+    borderClass: "border-rose-500/30",
+    barClass: "bg-rose-500",
+  };
+}
+
+function formatDate(value?: string | null): string {
+  if (!value) return "Not recorded";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Not recorded";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatLabel(value?: string | null): string {
+  if (!value) return "Not recorded";
+  return value
+    .split(/[\s_]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function daysSince(dateStr?: string | null): number | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  className,
+}: {
+  icon: typeof User;
+  label: string;
+  value: React.ReactNode;
+  className?: string;
+}) {
+  const empty = !value || value === "Not recorded" || value === "—";
+  return (
+    <div className={cn("flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3 dark:border-white/5", className)}>
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className={cn("mt-0.5 text-sm font-medium", empty && "text-muted-foreground italic")}>
+          {value || "Not recorded"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyBlock({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
+      <AlertCircle className="h-8 w-8 text-muted-foreground" />
+      <div>
+        <p className="font-medium">{title}</p>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
+      </div>
+      {action}
+    </div>
+  );
+}
 
 export default function PatientDetail() {
   const { id } = useParams();
+  const patientId = Number(id);
+
   const [showAIRecommendations, setShowAIRecommendations] = useState(false);
-  const [patientData, setPatientData] = useState<any | null>(null);
-  const [riskHistory, setRiskHistory] = useState<Array<{date:string;score:number}>>([]);
-  const [treatmentHistory, setTreatmentHistory] = useState<any[]>([]);
-  const [medications, setMedications] = useState<any[]>([]);
-  const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [patientData, setPatientData] = useState<Record<string, unknown> | null>(null);
+  const [clinical, setClinical] = useState<ClinicalData>({});
+  const [protocol, setProtocol] = useState<Record<string, unknown>>({});
+  const [riskHistory, setRiskHistory] = useState<Array<{ date: string; score: number }>>([]);
+  const [appointments, setAppointments] = useState<Record<string, unknown>[]>([]);
+  const [reports, setReports] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Edit logic
+
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isImageEnlarged, setIsImageEnlarged] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     age: "",
@@ -69,146 +218,176 @@ export default function PatientDetail() {
     diagnosis_date: "",
   });
 
-  const [isImageEnlarged, setIsImageEnlarged] = useState(false);
+  const riskScore = getRiskScore(patientData);
+  const riskLevel = getRiskLevel(riskScore);
 
-  const getRiskLevel = (score: number) => {
-    if (score <= 50) return { label: "Low", color: "success", bgClass: "bg-success", textClass: "text-success", borderClass: "border-success/20", bgLightClass: "bg-success/10" };
-    if (score <= 75) return { label: "Medium", color: "warning", bgClass: "bg-warning", textClass: "text-warning", borderClass: "border-warning/20", bgLightClass: "bg-warning/10" };
-    return { label: "High", color: "destructive", bgClass: "bg-destructive", textClass: "text-destructive", borderClass: "border-destructive/20", bgLightClass: "bg-destructive/10" };
-  };
+  const cancerType = String(patientData?.cancer_type || patientData?.cancerType || "");
+  const cancerSubtype = String(patientData?.cancer_subtype || patientData?.cancerSubtype || "");
+  const diagnosisDate = String(patientData?.diagnosis_date || patientData?.diagnosisDate || "");
+  const patientStatus = String(patientData?.status || "Active");
 
-  const riskLevel = getRiskLevel(patientData?.riskScore ?? 0);
+  const treatmentCycles = Number(protocol.cycles ?? 0);
+  const treatmentRegimen = String(protocol.regimen || protocol.name || "");
+
+  const nextAppointment = useMemo(() => {
+    const now = Date.now();
+    const upcoming = appointments
+      .filter((a) => {
+        const d = new Date(String(a.appointment_date || a.date || ""));
+        return !Number.isNaN(d.getTime()) && d.getTime() >= now;
+      })
+      .sort(
+        (a, b) =>
+          new Date(String(a.appointment_date || a.date)).getTime() -
+          new Date(String(b.appointment_date || b.date)).getTime(),
+      );
+    return upcoming[0] || null;
+  }, [appointments]);
+
+  const medications = useMemo(() => {
+    if (clinical.medications?.length) return clinical.medications;
+    if (treatmentRegimen)
+      return [{ name: treatmentRegimen, dosage: "Per protocol", frequency: "As scheduled", status: "Active" }];
+    return [];
+  }, [clinical.medications, treatmentRegimen]);
+
+  const treatmentHistory = useMemo(() => {
+    if (clinical.treatment_history?.length) {
+      return clinical.treatment_history.map((t, idx) => ({
+        id: idx,
+        treatment: t.name || t.type || "Treatment session",
+        date: t.date || diagnosisDate,
+        status: t.status || "Completed",
+        notes: t.notes || "",
+      }));
+    }
+    if (treatmentRegimen) {
+      return [
+        {
+          id: 0,
+          treatment: treatmentRegimen,
+          date: diagnosisDate,
+          status: patientStatus,
+          notes: treatmentCycles ? `${treatmentCycles} planned cycles` : "Active treatment protocol",
+        },
+      ];
+    }
+    return [];
+  }, [clinical.treatment_history, treatmentRegimen, treatmentCycles, diagnosisDate, patientStatus]);
+
+  const biomarkers = clinical.genomics?.biomarkers;
+  const mutations = clinical.genomics?.mutations || [];
+  const histo = clinical.histopathology;
+
+  const hasClinicalData =
+    Boolean(biomarkers) ||
+    mutations.length > 0 ||
+    Boolean(histo) ||
+    (clinical.comorbidities?.length ?? 0) > 0 ||
+    Boolean(clinical.notes);
 
   useEffect(() => {
-    // Fetch patient and related dynamic data from backend
     async function load() {
       try {
         setLoading(true);
         setError(null);
-        const pid = Number(id);
-        const api = (await import("@/services/api")).apiService;
-        const resp = await api.getPatient(pid);
-        const patient = resp?.patient || resp?.data || resp || null;
 
-        if (!patient) {
-          setError('Patient not found');
-          setPatientData(null);
+        const patient = await apiService.getPatient(patientId);
+        const data = (patient?.patient || patient?.data || patient) as Record<string, unknown>;
+
+        if (!data?.id) {
+          setError("Patient not found");
           return;
         }
 
-        setPatientData(patient);
+        setPatientData(data);
 
-        // Build risk history from actual patient data (created_at, updated_at, and current risk_score)
-        const rHist: Array<{date:string;score:number}> = [];
-        const baseScore = Math.round(Number(patient.risk_score ?? patient.riskScore ?? 50));
-        const createdDate = patient.created_at ? new Date(patient.created_at) : null;
-        const updatedDate = patient.updated_at ? new Date(patient.updated_at) : null;
-        
-        // If patient has creation date, use it as first data point
-        if (createdDate) {
-          const createdMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`;
-          rHist.push({ date: createdMonth, score: baseScore });
-        }
-        
-        // If updated date is different from created date, add it
-        if (updatedDate && createdDate && updatedDate.getTime() !== createdDate.getTime()) {
-          const updatedMonth = `${updatedDate.getFullYear()}-${String(updatedDate.getMonth() + 1).padStart(2, '0')}`;
-          // Only add if it's a different month
-          if (updatedMonth !== (createdDate ? `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}` : '')) {
-            rHist.push({ date: updatedMonth, score: baseScore });
-          }
-        }
-        
-        // If no history, just show current month with current score
-        if (rHist.length === 0) {
-          const now = new Date();
-          rHist.push({ 
-            date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, 
-            score: baseScore 
+        const clinicalData = parseJsonField<ClinicalData>(data.clinical_data, {});
+        const protocolData = parseJsonField<Record<string, unknown>>(data.treatment_protocol, {});
+        setClinical(clinicalData);
+        setProtocol(protocolData);
+
+        const baseScore = Math.round(getRiskScore(data));
+        const created = data.created_at ? new Date(String(data.created_at)) : null;
+        const updated = data.updated_at ? new Date(String(data.updated_at)) : null;
+        const history: Array<{ date: string; score: number }> = [];
+
+        if (created) {
+          history.push({
+            date: `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}`,
+            score: baseScore,
           });
         }
-        
-        // Sort by date
-        rHist.sort((a, b) => a.date.localeCompare(b.date));
-        setRiskHistory(rHist);
+        if (updated && created && updated.getTime() !== created.getTime()) {
+          const updatedKey = `${updated.getFullYear()}-${String(updated.getMonth() + 1).padStart(2, "0")}`;
+          const createdKey = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}`;
+          if (updatedKey !== createdKey) history.push({ date: updatedKey, score: baseScore });
+        }
+        if (history.length === 0) {
+          const now = new Date();
+          history.push({
+            date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+            score: baseScore,
+          });
+        }
+        setRiskHistory(history.sort((a, b) => a.date.localeCompare(b.date)));
 
-        // Prep edit form
         setEditForm({
-          name: patient.name || "",
-          age: String(patient.age || ""),
-          gender: patient.gender || "",
-          email: patient.email || "",
-          phone: patient.phone || "",
-          address: patient.address || "",
-          cancer_type: patient.cancer_type || patient.cancerType || "",
-          cancer_subtype: patient.cancer_subtype || patient.cancerSubtype || "",
-          stage: patient.stage || "",
-          status: patient.status || "",
-          diagnosis_date: patient.diagnosis_date || patient.diagnosisDate || "",
+          name: String(data.name || ""),
+          age: String(data.age || ""),
+          gender: String(data.gender || ""),
+          email: String(data.email || ""),
+          phone: String(data.phone || ""),
+          address: String(data.address || ""),
+          cancer_type: cancerType,
+          cancer_subtype: cancerSubtype,
+          stage: String(data.stage || ""),
+          status: patientStatus,
+          diagnosis_date: diagnosisDate ? diagnosisDate.split("T")[0] : "",
         });
 
-        // Treatment history: try to get from patient.treatment_protocol
-        if (patient.treatment_protocol) {
-          try {
-            const protocol = typeof patient.treatment_protocol === 'string' ? JSON.parse(patient.treatment_protocol) : patient.treatment_protocol;
-            setTreatmentHistory((protocol.sessions || []).map((s: any, idx: number) => ({ id: idx + 1, date: s.date || new Date().toISOString(), treatment: s.name || s.type || 'Therapy', status: s.status || 'Completed', notes: s.notes || '' })));
-          } catch {
-            setTreatmentHistory([]);
-          }
-        } else {
-          setTreatmentHistory([
-            { id: 1, date: new Date().toISOString(), treatment: `${patient.cancer_type || patient.cancerType} - Initial Therapy`, status: 'Completed', notes: 'Treatment data not provided' }
-          ]);
+        try {
+          const apptResp = await apiService.getAppointments();
+          const allAppts = (apptResp?.appointments || apptResp?.data?.appointments || []) as Record<string, unknown>[];
+          setAppointments(
+            allAppts.filter((a) => Number(a.patient_id || a.patientId) === Number(data.id)),
+          );
+        } catch {
+          setAppointments([]);
         }
 
-        // Medications: prefer clinical_data.medications if present
-        let meds: any[] = [];
         try {
-          const clinical = typeof patient.clinical_data === 'string' ? JSON.parse(patient.clinical_data || '{}') : patient.clinical_data || {};
-          meds = clinical.medications || [];
+          const reportResp = await apiService.getReports();
+          const allReports = (reportResp?.reports || reportResp?.data?.reports || []) as Record<string, unknown>[];
+          setReports(allReports.filter((r) => Number(r.patient_id) === Number(data.id)));
         } catch {
-          meds = [];
+          setReports([]);
         }
-        setMedications(meds);
-
-        // Appointments: fetch and filter by patient id
-        try {
-          const apptResp = await api.getAppointments();
-          const appts = (apptResp?.appointments || apptResp?.data?.appointments || apptResp || []).filter((a: any) => Number(a.patient_id || a.patientId) === Number(patient.id || patient.patient_id));
-          setUpcomingAppointments(appts);
-        } catch {
-          setUpcomingAppointments([]);
-        }
-      } catch (err: any) {
-        setError(err?.message || 'Failed to load patient');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to load patient");
       } finally {
         setLoading(false);
       }
     }
-    load();
-  }, [id]);
+
+    if (patientId) load();
+  }, [patientId]);
 
   const handleSavePatient = async () => {
     try {
       setSaving(true);
-      const pid = Number(id);
-      const api = (await import("@/services/api")).apiService;
-      
-      const updateData = {
+      const resp = await apiService.updatePatient(patientId, {
         ...editForm,
         age: parseInt(editForm.age) || 0,
-      };
-
-      const resp = await api.updatePatient(pid, updateData);
-      const updated = resp?.patient || resp?.data || resp;
-      
+      });
+      const updated = (resp?.patient || resp?.data || resp) as Record<string, unknown>;
       if (updated) {
         setPatientData(updated);
         setShowEditDialog(false);
-        toast.success("Patient information updated successfully");
+        toast.success("Patient updated");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to update patient");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to update patient");
     } finally {
       setSaving(false);
     }
@@ -217,29 +396,21 @@ export default function PatientDetail() {
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate size (e.g. 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image too large. Please select an image under 2MB.");
+      toast.error("Image must be under 2MB");
       return;
     }
-
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const base64String = reader.result as string;
       try {
         setSaving(true);
-        const pid = Number(id);
-        const api = (await import("@/services/api")).apiService;
-        
-        const resp = await api.updatePatient(pid, { avatar_url: base64String });
-        const updated = resp?.patient || resp?.data || resp;
-        
+        const resp = await apiService.updatePatient(patientId, { avatar_url: reader.result as string });
+        const updated = (resp?.patient || resp?.data || resp) as Record<string, unknown>;
         if (updated) {
           setPatientData(updated);
-          toast.success("Patient photo updated successfully");
+          toast.success("Photo updated");
         }
-      } catch (err: any) {
+      } catch {
         toast.error("Failed to upload photo");
       } finally {
         setSaving(false);
@@ -248,431 +419,598 @@ export default function PatientDetail() {
     reader.readAsDataURL(file);
   };
 
+  const handleGenerateReport = async () => {
+    try {
+      await apiService.generateReport(patientId);
+      toast.success("Report generated");
+      const reportResp = await apiService.getReports();
+      const allReports = (reportResp?.reports || reportResp?.data?.reports || []) as Record<string, unknown>[];
+      setReports(allReports.filter((r) => Number(r.patient_id) === patientId));
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate report");
+    }
+  };
+
   if (loading) {
     return (
-      <div className="bg-gradient-to-b from-background via-background to-muted/20">
-        <main className="flex-1">
-          <div className="container py-12">
-            <div className="text-center text-muted-foreground">Loading patient...</div>
+      <div className="p-6 lg:p-8">
+        <Skeleton className="mb-6 h-8 w-40" />
+        <div className="flex gap-6">
+          <Skeleton className="h-24 w-24 rounded-full" />
+          <div className="flex-1 space-y-3">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
           </div>
-        </main>
+        </div>
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !patientData) {
     return (
-      <div className="bg-gradient-to-b from-background via-background to-muted/20">
-        <main className="flex-1">
-          <div className="container py-12">
-            <div className="text-center text-destructive">{error}</div>
-          </div>
-        </main>
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <p className="text-destructive">{error || "Patient not found"}</p>
+        <Button asChild variant="outline">
+          <Link to="/patients">Back to Patients</Link>
+        </Button>
       </div>
     );
   }
+
+  const displayName = formatLabel(String(patientData.name || "Patient"));
+  const avatarUrl = String(patientData.avatar_url || patientData.avatarUrl || "");
+  const daysSinceDiagnosis = daysSince(diagnosisDate);
+  const lastVisitDate = String(
+    patientData.last_visit || patientData.lastVisit || patientData.updated_at || "",
+  );
 
   return (
-    <div className="bg-gradient-to-b from-background via-background to-muted/20">
-      <main className="flex-1">
-        {/* Header Section */}
-        <section className="py-8 bg-gradient-to-br from-primary/5 via-background to-success/5 border-b border-border">
-          <div className="container">
-            <Link to="/patients" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-6 transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Patients
-            </Link>
-            
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-              <div className="relative group">
-                <div 
-                  className="w-24 h-24 rounded-full overflow-hidden border-4 border-card shadow-lg relative bg-muted flex items-center justify-center cursor-zoom-in hover:border-primary/50 transition-all"
-                  onClick={() => setIsImageEnlarged(true)}
-                >
-                  {patientData?.avatar_url || patientData?.avatarUrl ? (
-                    <img 
-                      src={patientData?.avatar_url || patientData?.avatarUrl} 
-                      alt={patientData?.name || 'Patient'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User className="w-12 h-12 text-muted-foreground" />
-                  )}
-                  
-                  {/* Photo Overlay on hover */}
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Maximize2 className="h-6 w-6 text-white" />
-                  </div>
-                </div>
+    <div className="relative min-h-full text-foreground selection:bg-emerald-500/30">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute top-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-emerald-100/70 blur-[100px] mix-blend-multiply dark:bg-emerald-500/10 dark:mix-blend-normal" />
+        <div className="absolute bottom-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-violet-100/70 blur-[100px] mix-blend-multiply dark:bg-violet-500/10 dark:mix-blend-normal" />
+      </div>
 
-                {/* Dedicated Upload Button (No longer just on hover) */}
-                <label 
-                  htmlFor="photo-upload-direct" 
-                  className="absolute -bottom-1 -left-1 h-8 w-8 bg-white dark:bg-slate-900 border-2 border-border rounded-full flex items-center justify-center cursor-pointer shadow-md hover:scale-110 hover:text-primary transition-all z-10"
-                  title="Upload New Photo"
-                >
-                  <Camera className="h-4 w-4" />
-                  <input 
-                    id="photo-upload-direct" 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handlePhotoUpload}
-                    disabled={saving}
-                  />
-                </label>
+      <main className="relative z-10 mx-auto max-w-[1400px] p-6 lg:p-8">
+        <Link
+          to="/patients"
+          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-emerald-700 dark:hover:text-emerald-400"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Patients
+        </Link>
 
-                {/* Status Indicator (replacing the green icon with a sharper status ring) */}
-                <div className={`absolute -bottom-1 -right-1 h-6 w-6 rounded-full ${riskLevel.bgClass} border-2 border-card flex items-center justify-center`}>
-                   <div className="h-2 w-2 rounded-full bg-white opacity-40 animate-pulse" />
-                </div>
+        {/* Header */}
+        <section className="mb-8 rounded-3xl border border-border bg-card p-6 shadow-xl dark:border-white/5">
+          <div className="flex flex-col gap-6 md:flex-row md:items-start">
+            <div className="relative shrink-0">
+              <div
+                className="flex h-24 w-24 cursor-zoom-in items-center justify-center overflow-hidden rounded-full border-4 border-background bg-muted shadow-lg ring-2 ring-border"
+                onClick={() => setIsImageEnlarged(true)}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-12 w-12 text-muted-foreground" />
+                )}
               </div>
-              
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-3xl font-bold text-foreground">{patientData?.name || 'Patient'}</h1>
-                  <Badge className={`${riskLevel.bgLightClass} ${riskLevel.textClass} ${riskLevel.borderClass}`}>
-                    {riskLevel.label} Risk
-                  </Badge>
-                  <Badge variant="outline">{patientData?.status || 'Unknown'}</Badge>
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  {patientData?.age ?? '-'} years old • {patientData?.gender || '-'} • {patientData?.cancer_type || patientData?.cancerType || '-'}
-                </p>
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Diagnosed: {patientData?.diagnosis_date || patientData?.diagnosisDate ? new Date(patientData?.diagnosis_date || patientData?.diagnosisDate).toLocaleDateString() : '-'}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
-                    Last Visit: {patientData?.lastVisit ? new Date(patientData.lastVisit).toLocaleDateString() : '-'}
-                  </div>
-                </div>
-              </div>
+              <label
+                htmlFor="photo-upload"
+                className="absolute -bottom-1 -left-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-border bg-card shadow-md hover:text-emerald-600"
+                title="Upload photo"
+              >
+                <Camera className="h-4 w-4" />
+                <input
+                  id="photo-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                  disabled={saving}
+                />
+              </label>
+              <div
+                className={cn(
+                  "absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-card",
+                  riskLevel.barClass,
+                )}
+              />
+            </div>
 
-              <div className="flex gap-2">
-                <Button 
-                  className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                  onClick={() => setShowAIRecommendations(true)}
-                >
-                  <Brain className="h-4 w-4" />
-                  AI Recommendations
-                </Button>
-                <Button variant="outline" className="gap-2" onClick={() => setShowEditDialog(true)}>
-                  <Edit className="h-4 w-4" />
-                  Edit
-                </Button>
-                <Button variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{displayName}</h1>
+                <Badge className={cn(riskLevel.bgLightClass, riskLevel.textClass, riskLevel.borderClass)}>
+                  {riskLevel.label} Risk
+                </Badge>
+                <Badge variant="outline">{formatLabel(patientStatus)}</Badge>
               </div>
+              <p className="mt-2 text-muted-foreground">
+                {patientData.age ?? "—"} years · {formatLabel(String(patientData.gender || ""))} ·{" "}
+                {cancerType || "Cancer type not set"}
+                {cancerSubtype ? ` (${cancerSubtype})` : ""}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  Diagnosed {formatDate(diagnosisDate)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Activity className="h-4 w-4" />
+                  Last updated {formatDate(lastVisitDate)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Stethoscope className="h-4 w-4" />
+                  Stage {patientData.stage || "—"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                className="gap-2 bg-emerald-600 hover:bg-emerald-500"
+                onClick={() => setShowAIRecommendations(true)}
+              >
+                <Brain className="h-4 w-4" />
+                AI Recommendations
+              </Button>
+              <Button variant="outline" className="gap-2" onClick={() => setShowEditDialog(true)}>
+                <Edit className="h-4 w-4" />
+                Edit
+              </Button>
             </div>
           </div>
         </section>
 
-        {/* Stats Cards */}
-        <section className="py-8">
-          <div className="container">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card className="p-6 bg-card shadow-card hover:shadow-card-hover transition-all border-border/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Risk Score</p>
-                    <p className="text-3xl font-bold text-foreground">{patientData?.risk_score ?? patientData?.riskScore ?? 0}%</p>
-                  </div>
-                  <div className={`h-12 w-12 rounded-lg ${riskLevel.bgLightClass} flex items-center justify-center`}>
-                    <TrendingUp className={`h-6 w-6 ${riskLevel.textClass}`} />
-                  </div>
+        {/* Stats */}
+        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            {
+              label: "Risk Score",
+              value: `${riskScore.toFixed(1)}%`,
+              icon: TrendingUp,
+              extra: <Progress value={riskScore} className="mt-3 h-2" />,
+            },
+            {
+              label: "Treatment Cycles",
+              value: treatmentCycles || treatmentHistory.length || "—",
+              icon: Pill,
+            },
+            {
+              label: "Days Since Diagnosis",
+              value: daysSinceDiagnosis ?? "—",
+              icon: Calendar,
+            },
+            {
+              label: "Next Appointment",
+              value: nextAppointment
+                ? formatDate(String(nextAppointment.appointment_date || nextAppointment.date))
+                : appointments.length
+                  ? "None upcoming"
+                  : "Not scheduled",
+              icon: Clock,
+            },
+          ].map(({ label, value, icon: Icon, extra }) => (
+            <Card key={label} className="rounded-2xl border-border p-5 shadow-sm dark:border-white/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
                 </div>
-                <Progress value={patientData?.risk_score ?? patientData?.riskScore ?? 0} className="mt-4 h-2" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                  <Icon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+              </div>
+              {extra}
+            </Card>
+          ))}
+        </div>
+
+        {/* Tabs — consolidated to 3 */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="h-auto flex-wrap gap-1 rounded-2xl bg-muted/60 p-1">
+            <TabsTrigger value="overview" className="rounded-xl px-4">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="clinical" className="rounded-xl px-4">
+              Clinical & Treatment
+            </TabsTrigger>
+            <TabsTrigger value="records" className="rounded-xl px-4">
+              Appointments & Reports
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                  <User className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Contact & Demographics
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <InfoRow icon={Mail} label="Email" value={String(patientData.email || "")} />
+                  <InfoRow icon={Phone} label="Phone" value={String(patientData.phone || "")} />
+                  <InfoRow icon={MapPin} label="Address" value={String(patientData.address || "")} className="sm:col-span-2" />
+                  <InfoRow icon={User} label="Age" value={patientData.age ? `${patientData.age} years` : ""} />
+                  <InfoRow icon={User} label="Gender" value={formatLabel(String(patientData.gender || ""))} />
+                  <InfoRow icon={Stethoscope} label="Cancer Type" value={cancerType} />
+                  <InfoRow icon={Dna} label="Subtype" value={cancerSubtype} />
+                  <InfoRow icon={Activity} label="Clinical Stage" value={String(patientData.stage || "")} />
+                  <InfoRow icon={FileText} label="Patient ID" value={`ONC-${String(patientData.id).padStart(5, "0")}`} />
+                </div>
+                {!patientData.email && !patientData.phone && !patientData.address && (
+                  <div className="mt-4">
+                    <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setShowEditDialog(true)}>
+                      <Edit className="mr-2 h-3.5 w-3.5" />
+                      Add contact details
+                    </Button>
+                  </div>
+                )}
               </Card>
 
-              <Card className="p-6 bg-card shadow-card hover:shadow-card-hover transition-all border-border/50">
-                <div className="flex items-center justify-between">
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Risk Assessment
+                </h3>
+                <div className="mb-4 flex items-end justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Treatment Cycles</p>
-                    <p className="text-3xl font-bold text-foreground">12</p>
+                    <p className="text-4xl font-bold tabular-nums">{riskScore.toFixed(1)}%</p>
+                    <p className="text-sm text-muted-foreground">{riskLevel.label} risk classification</p>
                   </div>
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Pill className="h-6 w-6 text-primary" />
-                  </div>
+                  <Badge className={cn(riskLevel.bgLightClass, riskLevel.textClass)}>{riskLevel.label}</Badge>
                 </div>
-              </Card>
-
-              <Card className="p-6 bg-card shadow-card hover:shadow-card-hover transition-all border-border/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Days Since Diagnosis</p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {patientData?.diagnosis_date || patientData?.diagnosisDate ? Math.floor((new Date().getTime() - new Date(patientData?.diagnosis_date || patientData?.diagnosisDate).getTime()) / (1000 * 60 * 60 * 24)) : '-'}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-lg bg-success/10 flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-success" />
-                  </div>
+                <div className="h-3 overflow-hidden rounded-full bg-muted">
+                  <div className={cn("h-full rounded-full", riskLevel.barClass)} style={{ width: `${riskScore}%` }} />
                 </div>
-              </Card>
-
-              <Card className="p-6 bg-card shadow-card hover:shadow-card-hover transition-all border-border/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Next Appointment</p>
-                    <p className="text-lg font-bold text-foreground">Apr 3</p>
+                {riskHistory.length > 1 ? (
+                  <div className="mt-6 h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={riskHistory}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
-                  <div className="h-12 w-12 rounded-lg bg-warning/10 flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-warning" />
-                  </div>
-                </div>
+                ) : (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    Risk trend will appear after multiple assessments over time.
+                  </p>
+                )}
               </Card>
             </div>
 
-            {/* Main Content Tabs */}
-            <Tabs defaultValue="overview" className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="treatment">Treatment</TabsTrigger>
-                <TabsTrigger value="outcomes">Outcomes</TabsTrigger>
-                <TabsTrigger value="medications">Medications</TabsTrigger>
-                <TabsTrigger value="appointments">Appointments</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-primary" />
-                      Risk Score Trend
-                    </h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <LineChart data={riskHistory}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis domain={[0, 100]} />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Card>
-
-                  <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" />
-                      Patient Information
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Email</p>
-                        <p className="text-foreground">{patientData?.email || '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Phone</p>
-                        <p className="text-foreground">{patientData?.phone || '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Address</p>
-                        <p className="text-foreground">{patientData?.address || '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Stage</p>
-                        <Badge variant="outline">{patientData?.stage || '-'}</Badge>
-                      </div>
+            {hasClinicalData ? (
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                  <Dna className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Clinical Summary
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {biomarkers?.["PD-L1"] != null && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">PD-L1 Expression</p>
+                      <p className="mt-1 text-xl font-bold">{biomarkers["PD-L1"]}%</p>
                     </div>
-                  </Card>
+                  )}
+                  {biomarkers?.TMB != null && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">TMB Score</p>
+                      <p className="mt-1 text-xl font-bold">{biomarkers.TMB}</p>
+                    </div>
+                  )}
+                  {biomarkers?.MSI_Status && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">MSI Status</p>
+                      <p className="mt-1 text-xl font-bold">{biomarkers.MSI_Status}</p>
+                    </div>
+                  )}
+                  {clinical.comorbidity_score != null && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">Comorbidity Score</p>
+                      <p className="mt-1 text-xl font-bold">{clinical.comorbidity_score}</p>
+                    </div>
+                  )}
                 </div>
-
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Dna className="h-5 w-5 text-primary" />
-                    Genomic Profile
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">PD-L1 Expression</p>
-                      <p className="text-xl font-bold text-foreground">85%</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">TMB Score</p>
-                      <p className="text-xl font-bold text-foreground">12.5</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">MSI Status</p>
-                      <p className="text-xl font-bold text-foreground">MSS</p>
+                {mutations.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium">Mutations</p>
+                    <div className="flex flex-wrap gap-2">
+                      {mutations.map((m) => (
+                        <Badge key={m} variant="outline">
+                          {m}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-                </Card>
-              </TabsContent>
+                )}
+                {clinical.comorbidities && clinical.comorbidities.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium">Comorbidities</p>
+                    <div className="flex flex-wrap gap-2">
+                      {clinical.comorbidities.map((c) => (
+                        <Badge key={c} variant="secondary">
+                          {formatLabel(c)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {clinical.notes && (
+                  <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
+                    <p className="text-xs font-medium text-muted-foreground">Clinical Notes</p>
+                    <p className="mt-1 text-sm">{clinical.notes}</p>
+                  </div>
+                )}
+              </Card>
+            ) : (
+              <EmptyBlock
+                title="No clinical data yet"
+                description="Genomic and biomarker data will appear here once recorded. Use Edit to add contact details and notes."
+                action={
+                  <Button variant="outline" className="rounded-xl" onClick={() => setShowEditDialog(true)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Update patient record
+                  </Button>
+                }
+              />
+            )}
+          </TabsContent>
 
-              <TabsContent value="treatment" className="space-y-6">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Stethoscope className="h-5 w-5 text-primary" />
-                    Treatment History
-                  </h3>
+          {/* Clinical & Treatment */}
+          <TabsContent value="clinical" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                  <Stethoscope className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Treatment Protocol
+                </h3>
+                {treatmentRegimen || treatmentCycles ? (
                   <div className="space-y-4">
-                    {treatmentHistory.map((treatment) => (
-                      <div key={treatment.id} className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <p className="font-semibold text-foreground">{treatment.treatment}</p>
-                            <p className="text-sm text-muted-foreground">{new Date(treatment.date).toLocaleDateString()}</p>
-                          </div>
-                          <Badge className="bg-success/10 text-success border-success/20">
-                            {treatment.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{treatment.notes}</p>
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">Regimen</p>
+                      <p className="mt-1 font-semibold">{treatmentRegimen || "Not specified"}</p>
+                    </div>
+                    {treatmentCycles > 0 && (
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Planned Cycles</p>
+                        <p className="mt-1 text-2xl font-bold">{treatmentCycles}</p>
                       </div>
-                    ))}
+                    )}
+                    <div className="space-y-3">
+                      {treatmentHistory.map((t) => (
+                        <div key={t.id} className="rounded-xl border border-border p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{t.treatment}</p>
+                              <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
+                            </div>
+                            <Badge variant="outline">{t.status}</Badge>
+                          </div>
+                          {t.notes && <p className="mt-2 text-sm text-muted-foreground">{t.notes}</p>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </Card>
-              </TabsContent>
+                ) : (
+                  <EmptyBlock
+                    title="No treatment protocol"
+                    description="Treatment regimen and cycle data has not been recorded for this patient."
+                  />
+                )}
+              </Card>
 
-              <TabsContent value="outcomes" className="space-y-6">
-                <OutcomeTrackingTab patientId={parseInt(id || "1")} patientData={patientData} />
-              </TabsContent>
-
-              <TabsContent value="medications" className="space-y-6">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Pill className="h-5 w-5 text-primary" />
-                    Current Medications
-                  </h3>
-                  <div className="space-y-4">
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                  <Pill className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Medications
+                </h3>
+                {medications.length > 0 ? (
+                  <div className="space-y-3">
                     {medications.map((med, idx) => (
-                      <div key={idx} className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex items-start justify-between mb-2">
+                      <div key={idx} className="rounded-xl border border-border p-4">
+                        <div className="flex items-start justify-between gap-2">
                           <div>
-                            <p className="font-semibold text-foreground">{med.name}</p>
-                            <p className="text-sm text-muted-foreground">{med.dosage} • {med.frequency}</p>
-                          </div>
-                          <Badge className="bg-primary/10 text-primary border-primary/20">
-                            {med.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="appointments" className="space-y-6">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-primary" />
-                    Upcoming Appointments
-                  </h3>
-                  <div className="space-y-4">
-                    {upcomingAppointments.map((appt, idx) => (
-                      <div key={idx} className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-semibold text-foreground">{appt.type}</p>
-                            <p className="text-sm text-muted-foreground">{appt.doctor}</p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {new Date(appt.date).toLocaleDateString()} at {appt.time}
+                            <p className="font-medium">{med.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {[med.dosage, med.frequency].filter(Boolean).join(" · ")}
                             </p>
                           </div>
-                          <Button variant="outline" size="sm">View Details</Button>
+                          {med.status && <Badge variant="outline">{med.status}</Badge>}
                         </div>
                       </div>
                     ))}
                   </div>
-                </Card>
-              </TabsContent>
+                ) : (
+                  <EmptyBlock title="No medications listed" description="Active medications will appear here when added to the clinical record." />
+                )}
+              </Card>
+            </div>
 
-              <TabsContent value="documents" className="space-y-6">
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Medical Documents
+            {histo && (
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <h3 className="mb-4 text-lg font-semibold">Histopathology</h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {histo.grade && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">Grade</p>
+                      <p className="mt-1 font-bold">{histo.grade}</p>
+                    </div>
+                  )}
+                  {histo.ki67 != null && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">Ki-67</p>
+                      <p className="mt-1 font-bold">{histo.ki67}%</p>
+                    </div>
+                  )}
+                  {histo.tumor_size_cm != null && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">Tumor Size</p>
+                      <p className="mt-1 font-bold">{histo.tumor_size_cm} cm</p>
+                    </div>
+                  )}
+                  {histo.lymph_nodes_involved != null && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">Lymph Nodes</p>
+                      <p className="mt-1 font-bold">{histo.lymph_nodes_involved}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            <OutcomeTrackingTab patientId={patientId} patientData={patientData} />
+          </TabsContent>
+
+          {/* Appointments & Reports */}
+          <TabsContent value="records" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                  <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Appointments
+                </h3>
+                {appointments.length > 0 ? (
+                  <div className="space-y-3">
+                    {appointments
+                      .sort(
+                        (a, b) =>
+                          new Date(String(b.appointment_date || b.date)).getTime() -
+                          new Date(String(a.appointment_date || a.date)).getTime(),
+                      )
+                      .map((appt, idx) => (
+                        <div key={idx} className="rounded-xl border border-border p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">
+                                {String(appt.appointment_type || appt.type || "Appointment")}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(String(appt.appointment_date || appt.date))}
+                              </p>
+                              {appt.notes && (
+                                <p className="mt-1 text-xs text-muted-foreground">{String(appt.notes)}</p>
+                              )}
+                            </div>
+                            <Badge variant="outline">{String(appt.status || "Scheduled")}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <EmptyBlock
+                    title="No appointments"
+                    description="Scheduled visits for this patient will appear here."
+                  />
+                )}
+              </Card>
+
+              <Card className="rounded-3xl border-border p-6 shadow-xl dark:border-white/5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold">
+                    <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    Reports
                   </h3>
-                  <div className="space-y-2">
-                    {["Lab Results - March 2024", "Imaging Report - CT Scan", "Pathology Report", "Treatment Plan"].map((doc, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                  <Button size="sm" variant="outline" className="rounded-xl" onClick={handleGenerateReport}>
+                    Generate
+                  </Button>
+                </div>
+                {reports.length > 0 ? (
+                  <div className="space-y-3">
+                    {reports.map((report, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded-xl border border-border p-4"
+                      >
                         <div className="flex items-center gap-3">
                           <FileText className="h-5 w-5 text-muted-foreground" />
-                          <span className="text-foreground">{doc}</span>
+                          <div>
+                            <p className="font-medium">{String(report.report_type || "Clinical Report")}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(String(report.generated_at))}
+                            </p>
+                          </div>
                         </div>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           <Download className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
                   </div>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </section>
+                ) : (
+                  <EmptyBlock
+                    title="No reports yet"
+                    description="Generate a clinical report to document this patient's care."
+                    action={
+                      <Button size="sm" className="rounded-xl bg-emerald-600 hover:bg-emerald-500" onClick={handleGenerateReport}>
+                        Generate report
+                      </Button>
+                    }
+                  />
+                )}
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
 
-      {/* AI Recommendations Dialog */}
+      {/* AI Recommendations */}
       <Dialog open={showAIRecommendations} onOpenChange={setShowAIRecommendations}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
+              <Brain className="h-5 w-5" />
               AI Treatment Recommendations
             </DialogTitle>
           </DialogHeader>
           <AIRecommendationsPanel
-            patientId={parseInt(id || "1")}
+            patientId={patientId}
             patientData={patientData}
             onClose={() => setShowAIRecommendations(false)}
           />
         </DialogContent>
       </Dialog>
 
-      {/* Edit Patient Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Edit className="h-5 w-5 text-primary" />
-              Edit Patient Information
-            </DialogTitle>
+            <DialogTitle>Edit Patient</DialogTitle>
           </DialogHeader>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 gap-4 py-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input 
-                id="name" 
-                value={editForm.name} 
-                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-              />
+              <Input id="name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="age">Age</Label>
-              <Input 
-                id="age" 
-                type="number" 
-                value={editForm.age} 
-                onChange={(e) => setEditForm({...editForm, age: e.target.value})}
-              />
+              <Input id="age" type="number" value={editForm.age} onChange={(e) => setEditForm({ ...editForm, age: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gender">Gender</Label>
-              <Select value={editForm.gender} onValueChange={(val) => setEditForm({...editForm, gender: val})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select gender" />
-                </SelectTrigger>
+              <Label>Gender</Label>
+              <Select value={editForm.gender} onValueChange={(v) => setEditForm({ ...editForm, gender: v })}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={editForm.status} onValueChange={(val) => setEditForm({...editForm, status: val})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
+              <Label>Status</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Stable">Stable</SelectItem>
@@ -682,149 +1020,71 @@ export default function PatientDetail() {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input id="phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="cancer_type">Cancer Type</Label>
-              <Input 
-                id="cancer_type" 
-                value={editForm.cancer_type} 
-                onChange={(e) => setEditForm({...editForm, cancer_type: e.target.value})}
-              />
+              <Input id="cancer_type" value={editForm.cancer_type} onChange={(e) => setEditForm({ ...editForm, cancer_type: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="stage">Clinical Stage</Label>
-              <Select value={editForm.stage} onValueChange={(val) => setEditForm({...editForm, stage: val})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Stage I">Stage I</SelectItem>
-                  <SelectItem value="Stage II">Stage II</SelectItem>
-                  <SelectItem value="Stage III">Stage III</SelectItem>
-                  <SelectItem value="Stage IV">Stage IV</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={editForm.email} 
-                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input 
-                id="phone" 
-                value={editForm.phone} 
-                onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-              />
+              <Label htmlFor="stage">Stage</Label>
+              <Input id="stage" value={editForm.stage} onChange={(e) => setEditForm({ ...editForm, stage: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="diagnosis_date">Diagnosis Date</Label>
-              <Input 
-                id="diagnosis_date" 
-                type="date"
-                value={editForm.diagnosis_date} 
-                onChange={(e) => setEditForm({...editForm, diagnosis_date: e.target.value})}
-              />
+              <Input id="diagnosis_date" type="date" value={editForm.diagnosis_date} onChange={(e) => setEditForm({ ...editForm, diagnosis_date: e.target.value })} />
             </div>
             <div className="col-span-full space-y-2">
-              <Label htmlFor="address">Residential Address</Label>
-              <Textarea 
-                id="address" 
-                value={editForm.address} 
-                onChange={(e) => setEditForm({...editForm, address: e.target.value})}
-              />
+              <Label htmlFor="address">Address</Label>
+              <Textarea id="address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-            <Button 
-              className="bg-primary hover:bg-primary/90" 
-              onClick={handleSavePatient}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Changes"}
+            <Button className="bg-emerald-600 hover:bg-emerald-500" onClick={handleSavePatient} disabled={saving}>
+              {saving ? "Saving…" : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Patient Photo Lightbox */}
+      {/* Photo lightbox */}
       <AnimatePresence>
         {isImageEnlarged && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 md:p-10"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
             onClick={() => setIsImageEnlarged(false)}
           >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="relative max-w-5xl w-full bg-card rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col md:flex-row border border-white/10"
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="relative max-h-[90vh] max-w-3xl overflow-hidden rounded-2xl bg-card"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Image Container */}
-              <div className="flex-1 bg-muted flex items-center justify-center min-h-[300px] md:min-h-[500px]">
-                {patientData?.avatar_url || patientData?.avatarUrl ? (
-                  <img 
-                    src={patientData?.avatar_url || patientData?.avatarUrl} 
-                    alt={patientData?.name}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <User className="w-32 h-32 text-muted-foreground/20" />
-                )}
-              </div>
-
-              {/* Right Box (Clinical Info) */}
-              <div className="w-full md:w-80 bg-slate-900 border-l border-white/5 p-8 flex flex-col">
-                <div className="flex justify-between items-start mb-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">{patientData?.name}</h2>
-                    <Badge className={`${riskLevel.bgLightClass} ${riskLevel.textClass} border-none`}>
-                      {riskLevel.label} Priority
-                    </Badge>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-white/40 hover:text-white hover:bg-white/10 -mt-2 -mr-2"
-                    onClick={() => setIsImageEnlarged(false)}
-                  >
-                    <X className="h-6 w-6" />
-                  </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-2 z-10"
+                onClick={() => setIsImageEnlarged(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} className="max-h-[85vh] w-full object-contain" />
+              ) : (
+                <div className="flex h-64 w-64 items-center justify-center">
+                  <User className="h-24 w-24 text-muted-foreground" />
                 </div>
-
-                <div className="space-y-6">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">ID Verification</p>
-                    <p className="text-sm text-slate-300 font-mono">ONC-{patientData?.id?.toString().padStart(6, '0')}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">Cancer Profile</p>
-                    <p className="text-sm text-slate-300">{patientData?.cancer_type || patientData?.cancerType}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">Clinical Status</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className={`h-2 w-2 rounded-full ${riskLevel.bgClass} animate-pulse`} />
-                      <p className="text-sm text-slate-100 font-semibold">{patientData?.status || 'Active'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-auto pt-8 border-t border-white/5">
-                  <p className="text-[10px] text-white/30 leading-relaxed italic">
-                    Certified biometric visual for clinical identification only. AI Risk recalculation active.
-                  </p>
-                </div>
-              </div>
+              )}
             </motion.div>
           </motion.div>
         )}

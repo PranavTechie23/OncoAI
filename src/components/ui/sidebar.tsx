@@ -465,10 +465,22 @@ const SidebarMenuButton = React.forwardRef<
     };
   }
 
+  const showTooltip = state === "collapsed" && !isMobile;
+
+  if (!showTooltip) {
+    return button;
+  }
+
   return (
-    <Tooltip>
+    <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" align="center" hidden={state !== "collapsed" || isMobile} {...tooltip} />
+      <TooltipContent
+        side="right"
+        align="center"
+        sideOffset={8}
+        className="z-[100] font-medium"
+        {...tooltip}
+      />
     </Tooltip>
   );
 });

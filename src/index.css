@@ -51,26 +51,26 @@ html {
 /* Enhanced Animations */
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    --background: 214 25% 94%;
+    --foreground: 222 47% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222 47% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222 47% 9%;
 
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 214 20% 91%;
+    --secondary-foreground: 222 47% 9%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 214 20% 91%;
+    --muted-foreground: 215 18% 38%;
 
-    --accent: 217 91% 95%;
-    --accent-foreground: 217 91% 40%;
+    --accent: 217 91% 93%;
+    --accent-foreground: 217 91% 35%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -81,26 +81,26 @@ html {
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+    --border: 214 22% 82%;
+    --input: 214 22% 82%;
     --ring: 217 91% 60%;
 
     --radius: 0.75rem;
 
     /* Custom healthcare tokens */
-    --gradient-hero: linear-gradient(135deg, hsl(210 40% 98%) 0%, hsl(217 91% 97%) 50%, hsl(210 40% 96%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(214 25% 94%) 0%, hsl(217 91% 95%) 50%, hsl(214 20% 91%) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 100%);
-    --shadow-card: 0 4px 20px -4px hsl(217 91% 60% / 0.12);
-    --shadow-card-hover: 0 8px 30px -4px hsl(217 91% 60% / 0.2);
+    --shadow-card: 0 4px 20px -4px hsl(222 47% 9% / 0.08);
+    --shadow-card-hover: 0 8px 30px -4px hsl(222 47% 9% / 0.12);
     --shadow-button: 0 4px 14px -3px hsl(217 91% 60% / 0.4);
 
-    --sidebar-background: 210 40% 98%;
-    --sidebar-foreground: 222 47% 11%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 9%;
     --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 160 60% 94%;
+    --sidebar-accent: 160 60% 92%;
     --sidebar-accent-foreground: 160 84% 25%;
-    --sidebar-border: 160 20% 90%;
+    --sidebar-border: 214 22% 82%;
     --sidebar-ring: 160 84% 39%;
   }
 
