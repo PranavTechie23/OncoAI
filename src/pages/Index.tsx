@@ -8,11 +8,10 @@ import { Button } from "@/components/ui/button";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import FadeInText from "@/components/ui/FadeInText";
 import { ScrollAnimation, StaggerContainer, StaggerItem } from "@/components/ScrollAnimation";
-import { ParallaxSection, ParallaxText } from "@/components/ParallaxSection";
+import { ParallaxSection } from "@/components/ParallaxSection";
 import { HoverCard } from "@/components/HoverCard";
 import { BentoGrid, BentoGridItem } from "@/components/ui/BentoGrid";
-import { useAuth } from "@/contexts/AuthContext";
-import { motion } from "framer-motion";
+
 import { 
   ArrowRight, 
   Brain, 
@@ -27,7 +26,6 @@ import {
 } from "lucide-react";
 
 const Index = () => {
-  const { isAuthenticated } = useAuth();
   const features = [
     {
       icon: Brain,
@@ -80,27 +78,83 @@ const Index = () => {
       <main className="flex-1">
         <HeroSection />
 
-        <section className="py-16">
-          <div className="container rounded-[2rem] border border-border/70 bg-card/70 p-10 shadow-xl shadow-primary/5 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/70">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-8">
-              <p className="text-sm uppercase tracking-[0.3em] text-primary font-semibold">Get started with OncoAI</p>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground">Login or register to access the full doctor dashboard</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                Use the secure OncoAI portal for patient management, intelligent treatment recommendations, reports, and appointment tracking.
-              </p>
-            </div>
-            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-center">
-              <Button size="lg" asChild>
-                <Link to={isAuthenticated ? "/dashboard" : "/login"}>
-                  {isAuthenticated ? "Go to Dashboard" : "Login"}
-                </Link>
-              </Button>
-              {!isAuthenticated && (
-                <Button variant="outline" size="lg" asChild>
-                  <Link to="/signup">Register</Link>
-                </Button>
-              )}
-            </div>
+        {/* How It Works Section */}
+        <section className="py-20 relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.03] to-transparent dark:via-primary/[0.06]" />
+          <div className="container relative">
+            <ScrollAnimation direction="up" delay={0.1}>
+              <div className="text-center mb-16">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 dark:bg-primary/20 text-primary text-sm font-semibold mb-6">
+                  <Zap className="h-4 w-4" />
+                  Simple 3-Step Process
+                </div>
+                <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight">
+                  How It{" "}
+                  <span className="bg-gradient-to-r from-primary via-primary/80 to-success bg-clip-text text-transparent">
+                    Works
+                  </span>
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-light">
+                  From patient data to actionable treatment plans — in minutes, not hours
+                </p>
+              </div>
+            </ScrollAnimation>
+
+            <StaggerContainer className="grid md:grid-cols-3 gap-8 relative">
+              {/* Connecting line (desktop) */}
+              <div className="hidden md:block absolute top-24 left-[20%] right-[20%] h-px bg-gradient-to-r from-primary/40 via-success/40 to-primary/40" />
+
+              {[
+                {
+                  step: "01",
+                  icon: Users,
+                  title: "Upload Patient Data",
+                  description: "Securely import clinical records, genomic profiles, and medical history into the HIPAA-compliant platform.",
+                  gradient: "from-primary/20 to-primary/5",
+                  borderColor: "border-primary/30 hover:border-primary/50",
+                  iconBg: "from-primary to-purple-500"
+                },
+                {
+                  step: "02",
+                  icon: Brain,
+                  title: "AI Analyzes & Recommends",
+                  description: "Our AI engine cross-references thousands of clinical trials and genomic markers to generate personalized treatment protocols.",
+                  gradient: "from-success/20 to-success/5",
+                  borderColor: "border-success/30 hover:border-success/50",
+                  iconBg: "from-success to-emerald-400"
+                },
+                {
+                  step: "03",
+                  icon: BarChart3,
+                  title: "Monitor & Optimize",
+                  description: "Track treatment outcomes in real-time, adjust protocols dynamically, and generate detailed reports for clinical review.",
+                  gradient: "from-warning/20 to-warning/5",
+                  borderColor: "border-warning/30 hover:border-warning/50",
+                  iconBg: "from-amber-500 to-orange-400"
+                }
+              ].map((item, index) => (
+                <StaggerItem key={index} index={index}>
+                  <HoverCard hoverScale={1.03}>
+                    <div className={`relative group rounded-2xl border ${item.borderColor} bg-gradient-to-b ${item.gradient} dark:bg-card/50 backdrop-blur-sm p-8 text-center transition-all duration-500 h-full`}>
+                      {/* Step number badge */}
+                      <div className={`absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r ${item.iconBg} text-white text-xs font-bold tracking-widest shadow-lg`}>
+                        <span className="font-mono text-sm">
+                          STEP {item.step}
+                        </span>
+                      </div>
+
+                      {/* Icon */}
+                      <div className={`inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br ${item.iconBg} shadow-lg mb-6 mt-2 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3`}>
+                        <item.icon className="h-8 w-8 text-white" />
+                      </div>
+
+                      <h3 className="text-xl font-bold text-foreground mb-3">{item.title}</h3>
+                      <p className="text-muted-foreground leading-relaxed text-sm">{item.description}</p>
+                    </div>
+                  </HoverCard>
+                </StaggerItem>
+              ))}
+            </StaggerContainer>
           </div>
         </section>
 
@@ -115,16 +169,12 @@ const Index = () => {
                   { value: "24/7", numericValue: 24, label: "Real-time Monitoring", icon: TrendingUp, isSpecial: true },
                   { value: "100%", numericValue: 100, label: "HIPAA Compliant", icon: Shield, suffix: "%" }
                 ].map((stat, index) => (
-                  <StaggerItem key={index}>
+                  <StaggerItem key={index} index={index}>
                     <HoverCard hoverScale={1.05}>
                       <div className="text-center group">
-                        <motion.div
-                          whileHover={{ rotate: 360, scale: 1.1 }}
-                          transition={{ duration: 0.5 }}
-                          className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-primary/10 dark:bg-primary/20 mb-4"
-                        >
+                        <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-primary/10 dark:bg-primary/20 mb-4 transition-transform duration-500 group-hover:rotate-360 group-hover:scale-110">
                           <stat.icon className="h-6 w-6 text-primary" />
-                        </motion.div>
+                        </div>
                         <div className="text-3xl md:text-4xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
                           {stat.isSpecial ? (
                             "24/7"
@@ -156,15 +206,10 @@ const Index = () => {
           <div className="container relative">
             <ScrollAnimation direction="up" delay={0.2}>
               <div className="text-center mb-10">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 dark:bg-primary/20 text-primary text-sm font-semibold mb-6"
-                >
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 dark:bg-primary/20 text-primary text-sm font-semibold mb-6 transition-transform duration-500 ease-out hover:scale-105">
                   <Sparkles className="h-4 w-4" />
                   Why Choose OncoAI
-                </motion.div>
+                </div>
                 <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 tracking-tight">
                   Powerful Features for{" "}
                   <span className="bg-gradient-to-r from-primary via-primary/80 to-success bg-clip-text text-transparent">
@@ -180,14 +225,13 @@ const Index = () => {
             <StaggerContainer>
               <BentoGrid className="max-w-6xl mx-auto">
                 {features.map((feature, index) => (
-                  <StaggerItem key={index} className="md:col-span-1">
+                  <StaggerItem key={index} index={index} className="md:col-span-1">
                     <BentoGridItem
                       title={feature.title}
                       description={feature.description}
                       icon={<feature.icon className="h-6 w-6" />}
                       color={feature.color}
                       link={feature.link}
-                      isAuthenticated={isAuthenticated}
                       isPublic={feature.isPublic}
                       className="h-full"
                     />
@@ -202,41 +246,23 @@ const Index = () => {
 
         {/* Testimonial Section */}
         <ParallaxSection speed={0.2}>
-          <section className="py-24 bg-muted/20 dark:bg-slate-900/30">
+          <section className="py-12 md:py-16 bg-muted/20 dark:bg-slate-900/30">
             <div className="container">
               <ScrollAnimation direction="scale" delay={0.2}>
                 <div className="max-w-4xl mx-auto text-center">
-                  <motion.div
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                  >
-                    <HeartPulse className="h-12 w-12 text-primary/60 dark:text-primary/40 mx-auto mb-8" />
-                  </motion.div>
-                  <motion.blockquote
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6 }}
-                    className="text-2xl md:text-3xl font-light text-foreground mb-8 leading-relaxed italic"
-                  >
+                  <div className="h-12 w-12 text-primary/60 dark:text-primary/40 mx-auto mb-6">
+                    <HeartPulse className="h-12 w-12" />
+                  </div>
+                  <blockquote className="text-xl md:text-2xl lg:text-3xl font-light text-foreground mb-6 leading-relaxed italic">
                     "OncoAI has revolutionized our oncology practice. The AI-driven insights have improved our treatment planning accuracy by 40% and significantly reduced administrative workload."
-                  </motion.blockquote>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
-                    className="flex items-center justify-center gap-4"
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.1, rotate: 5 }}
-                      className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-success"
-                    />
+                  </blockquote>
+                  <div className="flex items-center justify-center gap-4 transition-transform duration-500 ease-out opacity-100">
+                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-success" />
                     <div className="text-left">
                       <div className="font-semibold text-foreground">Dr. Sarah Johnson</div>
                       <div className="text-sm text-muted-foreground">Chief Oncology Director, Memorial Hospital</div>
                     </div>
-                  </motion.div>
+                  </div>
                 </div>
               </ScrollAnimation>
             </div>
@@ -244,95 +270,75 @@ const Index = () => {
         </ParallaxSection>
 
         {/* CTA Section */}
-        <section className="py-24 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-success/5" />
-          <div className="container relative">
-            <ScrollAnimation direction="scale" delay={0.2}>
-              <Card className="p-16 bg-gradient-to-br from-card via-card/95 to-card/90 dark:from-slate-900/80 dark:via-slate-900/90 dark:to-slate-900 
-                           border-2 border-primary/20 dark:border-primary/30 
-                           shadow-2xl dark:shadow-2xl dark:shadow-primary/10
-                           relative overflow-hidden backdrop-blur-sm">
-                {/* Animated gradient border */}
-                <motion.div
-                  animate={{
-                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                  }}
-                  transition={{
-                    duration: 5,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                  className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-success/10 bg-[length:200%_100%]"
-                />
-                
-                <div className="relative z-10">
-                <motion.div
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="inline-flex items-center justify-center h-20 w-20 rounded-3xl 
-                            bg-gradient-to-br from-primary/30 to-success/30 dark:from-primary/40 dark:to-success/40 
-                            mb-8"
-                >
-                  <Zap className="h-10 w-10 text-primary-foreground" />
-                </motion.div>
-                
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 tracking-tight">
-                  Ready to Transform{" "}
-                  <span className="bg-gradient-to-r from-primary via-primary/80 to-success bg-clip-text text-transparent">
-                    Patient Care?
-                  </span>
-                </h2>
-                
-                <p className="text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-                  Join hundreds of medical professionals using OncoAI to deliver personalized cancer treatment with unprecedented accuracy and efficiency.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button 
-                      size="lg" 
-                      className="gap-3 text-lg px-10 py-7 rounded-2xl 
-                               bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary
-                               shadow-xl hover:shadow-2xl transition-all duration-300"
-                      asChild
-                    >
-                      <Link to="/signup">
-                        Start Free Trial
-                        <motion.span
-                          animate={{ x: [0, 4, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        >
-                          <ArrowRight className="h-5 w-5 inline" />
-                        </motion.span>
-                      </Link>
-                    </Button>
-                  </motion.div>
+        <section className="py-12 md:py-16 relative overflow-hidden flex items-center justify-center">
+          {/* Animated Background Orbs */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[200px] bg-primary/30 rounded-full blur-[80px] animate-pulse mix-blend-screen opacity-50 dark:opacity-30" style={{ animationDuration: '4s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[150px] bg-success/20 rounded-full blur-[60px] animate-pulse mix-blend-screen opacity-60 dark:opacity-40 delay-1000" style={{ animationDuration: '5s' }} />
+          
+          <div className="container relative z-10">
+            <ScrollAnimation direction="scale" delay={0.1}>
+              <div className="max-w-3xl mx-auto">
+                <div className="p-[1px] rounded-[2rem] bg-gradient-to-br from-primary/30 via-transparent to-success/30 shadow-xl relative overflow-hidden group">
+                  {/* Rotating border effect */}
+                  <div className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(255,255,255,0.3)_360deg)] animate-[spin_4s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                   
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button 
-                      variant="outline" 
-                      size="lg"
-                      className="text-lg px-10 py-7 rounded-2xl border-2 
-                               hover:bg-accent/50 hover:border-accent 
-                               transition-all duration-300"
-                      asChild
-                    >
-                      <Link to="/demo" className="flex items-center gap-2">
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Watch Demo
-                      </Link>
-                    </Button>
-                  </motion.div>
+                  <div className="relative bg-card/40 dark:bg-slate-950/60 backdrop-blur-2xl rounded-[calc(2rem-1px)] p-8 md:p-10 border border-white/10 text-center overflow-hidden">
+                    {/* Inner subtle noise/texture could go here, but a gradient overlay works well */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+                    
+                    <div className="relative z-20">
+                      <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-purple-600 shadow-lg shadow-primary/20 mb-6 transition-transform duration-500 hover:scale-110 hover:rotate-3">
+                        <Zap className="h-7 w-7 text-white" />
+                      </div>
+                      
+                      <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4 tracking-tight">
+                        Ready to Transform <br className="hidden md:block" />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-400 to-success">
+                          Patient Care?
+                        </span>
+                      </h2>
+                      
+                      <p className="text-base md:text-lg text-muted-foreground mb-8 max-w-xl mx-auto leading-relaxed font-light">
+                        Join top medical professionals using OncoAI to deliver personalized cancer treatment with unprecedented accuracy and efficiency.
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                        <div className="transition-transform duration-300 hover:scale-105">
+                          <Button 
+                            className="gap-2 px-6 h-12 rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-lg transition-all duration-300 border border-foreground/10"
+                            asChild
+                          >
+                            <Link to="/signup" className="flex items-center gap-2">
+                              Start Free Trial
+                              <ArrowRight className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        </div>
+                        
+                        <div className="transition-transform duration-300 hover:scale-105">
+                          <Button 
+                            variant="outline" 
+                            className="px-6 h-12 rounded-full border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 text-foreground transition-all duration-300 backdrop-blur-md"
+                            asChild
+                          >
+                            <Link to="/demo" className="flex items-center gap-2">
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Watch Demo
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground mt-6 font-medium tracking-wide uppercase">
+                        No credit card required <span className="mx-2 opacity-50">•</span> 14-day free trial <span className="mx-2 opacity-50">•</span> Full feature access
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                
-                <p className="text-sm text-muted-foreground mt-8 text-center">
-                  No credit card required • 14-day free trial • Full feature access
-                </p>
-                </div>
-              </Card>
+              </div>
             </ScrollAnimation>
           </div>
         </section>

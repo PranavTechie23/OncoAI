@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -221,16 +222,15 @@ export function DoctorSidebar() {
   );
 }
 
-function SidebarFooterProfileButton({
-  initials,
-  user,
-}: {
+const SidebarFooterProfileButton = forwardRef<HTMLButtonElement, {
   initials: string;
   user: ReturnType<typeof useAuth>["user"];
-}) {
-  return (
+}>(
+  ({ initials, user, ...props }, ref) => (
     <button
+      ref={ref}
       type="button"
+      {...props}
       className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/50 p-2 text-left transition hover:bg-muted/80 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
     >
       <div className="relative shrink-0">
@@ -251,5 +251,5 @@ function SidebarFooterProfileButton({
       </div>
       <ChevronUp className="size-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
     </button>
-  );
-}
+  ),
+);

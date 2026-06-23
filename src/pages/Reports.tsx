@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -23,22 +23,12 @@ import {
   ArrowUpRight,
   AlertCircle,
 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area,
-} from "recharts";
+const ReportsMonthlyAreaChart = lazy(() => import("@/components/ReportsCharts").then((mod) => ({ default: mod.ReportsMonthlyAreaChart })));
+const ReportsCancerTypePieChart = lazy(() => import("@/components/ReportsCharts").then((mod) => ({ default: mod.ReportsCancerTypePieChart })));
+const ReportsPatientGrowthChart = lazy(() => import("@/components/ReportsCharts").then((mod) => ({ default: mod.ReportsPatientGrowthChart })));
+const ReportsTreatmentVolumeChart = lazy(() => import("@/components/ReportsCharts").then((mod) => ({ default: mod.ReportsTreatmentVolumeChart })));
+const ReportsOutcomeDistributionChart = lazy(() => import("@/components/ReportsCharts").then((mod) => ({ default: mod.ReportsOutcomeDistributionChart })));
+const ReportsRiskDistributionChart = lazy(() => import("@/components/ReportsCharts").then((mod) => ({ default: mod.ReportsRiskDistributionChart })));
 import { apiService } from "@/services/api";
 import { format, parseISO, isValid } from "date-fns";
 import { toast } from "sonner";
@@ -411,26 +401,9 @@ export default function Reports() {
                     empty={!hasMonthlyData && !loading}
                   >
                     <div className="h-[280px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={monthlyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="reportsPatients" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="reportsTreatments" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.35} />
-                              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
-                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Area type="monotone" dataKey="patients" name="Patients" stroke="#10b981" strokeWidth={2} fill="url(#reportsPatients)" />
-                          <Area type="monotone" dataKey="treatments" name="Treatments" stroke="#8b5cf6" strokeWidth={2} fill="url(#reportsTreatments)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                      <Suspense fallback={<div className="h-full animate-pulse rounded-3xl bg-muted" />}>
+                        <ReportsMonthlyAreaChart monthlyData={monthlyData} />
+                      </Suspense>
                     </div>
                   </ReportChartCard>
 
@@ -442,25 +415,9 @@ export default function Reports() {
                     empty={!hasCancerData && !loading}
                   >
                     <div className="h-[280px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={cancerTypeDistribution}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={55}
-                            outerRadius={95}
-                            paddingAngle={3}
-                            dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          >
-                            {cancerTypeDistribution.map((entry, index) => (
-                              <Cell key={entry.name} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip content={<ChartTooltip />} />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
+                      <Suspense fallback={<div className="h-full animate-pulse rounded-3xl bg-muted" />}>
+                        <ReportsCancerTypePieChart cancerTypeDistribution={cancerTypeDistribution} />
+                      </Suspense>
                     </div>
                   </ReportChartCard>
                 </div>
@@ -546,15 +503,9 @@ export default function Reports() {
               <TabsContent value="patients" className="mt-6">
                 <ReportChartCard title="Patient Growth" subtitle="New enrollments over time" icon={Users} accent="emerald" empty={!hasMonthlyData && !loading}>
                   <div className="h-[360px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={monthlyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
-                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Line type="monotone" dataKey="patients" name="Patients" stroke="#10b981" strokeWidth={3} dot={{ fill: "#10b981", r: 4 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <Suspense fallback={<div className="h-full animate-pulse rounded-3xl bg-muted" />}>
+                      <ReportsPatientGrowthChart monthlyData={monthlyData} />
+                    </Suspense>
                   </div>
                 </ReportChartCard>
               </TabsContent>
@@ -562,15 +513,9 @@ export default function Reports() {
               <TabsContent value="treatments" className="mt-6">
                 <ReportChartCard title="Treatment Volume" subtitle="Monthly active protocols" icon={Activity} accent="violet" empty={!hasMonthlyData && !loading}>
                   <div className="h-[360px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
-                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="treatments" name="Treatments" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <Suspense fallback={<div className="h-full animate-pulse rounded-3xl bg-muted" />}>
+                      <ReportsTreatmentVolumeChart monthlyData={monthlyData} />
+                    </Suspense>
                   </div>
                 </ReportChartCard>
               </TabsContent>
@@ -579,37 +524,17 @@ export default function Reports() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <ReportChartCard title="Treatment Outcomes" subtitle="Response distribution" icon={BarChart3} accent="emerald" empty={!hasOutcomeData && !loading}>
                     <div className="h-[280px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={treatmentOutcomes} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
-                          <XAxis dataKey="type" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Bar dataKey="count" name="Cases" radius={[6, 6, 0, 0]}>
-                            {treatmentOutcomes.map((entry) => (
-                              <Cell key={entry.type} fill={entry.fill} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <Suspense fallback={<div className="h-full animate-pulse rounded-3xl bg-muted" />}>
+                        <ReportsOutcomeDistributionChart treatmentOutcomes={treatmentOutcomes} />
+                      </Suspense>
                     </div>
                   </ReportChartCard>
 
                   <ReportChartCard title="Risk Distribution" subtitle="Patient risk bands" icon={TrendingUp} accent="amber" empty={!hasRiskData && !loading}>
                     <div className="h-[280px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={riskDistribution} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
-                          <XAxis dataKey="range" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Bar dataKey="count" name="Patients" radius={[6, 6, 0, 0]}>
-                            {riskDistribution.map((entry) => (
-                              <Cell key={entry.range} fill={entry.fill} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <Suspense fallback={<div className="h-full animate-pulse rounded-3xl bg-muted" />}>
+                        <ReportsRiskDistributionChart riskDistribution={riskDistribution} />
+                      </Suspense>
                     </div>
                   </ReportChartCard>
                 </div>

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { AIRecommendationsPanel } from "@/components/AIRecommendationsPanel";
+const AIRecommendationsPanel = lazy(() => import("@/components/AIRecommendationsPanel").then((mod) => ({ default: mod.AIRecommendationsPanel })));
 import {
   Brain,
   AlertCircle,
@@ -442,17 +442,19 @@ export default function Recommendations() {
               AI Treatment Recommendations
             </DialogTitle>
           </DialogHeader>
-          {selectedPatientId && (
-            <AIRecommendationsPanel
-              patientId={selectedPatientId}
-              patientData={patientData}
-              onClose={() => {
-                setShowDetailsDialog(false);
-                setSelectedPatientId(null);
-                setPatientData(null);
-              }}
-            />
-          )}
+          <Suspense fallback={<div className="p-8 text-center">Loading AI recommendations...</div>}>
+            {selectedPatientId && (
+              <AIRecommendationsPanel
+                patientId={selectedPatientId}
+                patientData={patientData}
+                onClose={() => {
+                  setShowDetailsDialog(false);
+                  setSelectedPatientId(null);
+                  setPatientData(null);
+                }}
+              />
+            )}
+          </Suspense>
         </DialogContent>
       </Dialog>
     </div>

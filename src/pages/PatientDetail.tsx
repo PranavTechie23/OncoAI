@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +29,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AIRecommendationsPanel } from "@/components/AIRecommendationsPanel";
-import { OutcomeTrackingTab } from "@/components/OutcomeTrackingTab";
+const AIRecommendationsPanel = lazy(() => import("@/components/AIRecommendationsPanel").then((mod) => ({ default: mod.AIRecommendationsPanel })));
+const OutcomeTrackingTab = lazy(() => import("@/components/OutcomeTrackingTab").then((mod) => ({ default: mod.OutcomeTrackingTab })));
+const PatientRiskTrendChart = lazy(() => import("@/components/PatientRiskTrendChart").then((mod) => ({ default: mod.default })));
 import {
   Dialog,
   DialogContent,
@@ -38,15 +39,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -672,15 +664,9 @@ export default function PatientDetail() {
                 </div>
                 {riskHistory.length > 1 ? (
                   <div className="mt-6 h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={riskHistory}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <Suspense fallback={<div className="h-full rounded-3xl bg-muted animate-pulse" />}>
+                      <PatientRiskTrendChart riskHistory={riskHistory} />
+                    </Suspense>
                   </div>
                 ) : (
                   <p className="mt-4 text-sm text-muted-foreground">
@@ -973,11 +959,15 @@ export default function PatientDetail() {
               AI Treatment Recommendations
             </DialogTitle>
           </DialogHeader>
-          <AIRecommendationsPanel
-            patientId={patientId}
-            patientData={patientData}
-            onClose={() => setShowAIRecommendations(false)}
-          />
+          <Suspense fallback={<div className="p-8 text-center">Loading AI recommendations...</div>}>
+            {Number.isFinite(patientId) && (
+              <AIRecommendationsPanel
+                patientId={patientId}
+                patientData={patientData}
+                onClose={() => setShowAIRecommendations(false)}
+              />
+            )}
+          </Suspense>
         </DialogContent>
       </Dialog>
 
