@@ -10,18 +10,6 @@
 
 ---
 
-</div>
-
-## 📹 Demo Video
-
-**Watch the full demonstration of OncoAI in action:**
-
-🎬 **[View Demo Video on Google Drive](https://drive.google.com/drive/folders/1lqc-92zzB-kNg4d4JOogL5nOkpAdKE0d?zx=llkgidyn8uad)**
-
-*Experience the complete platform walkthrough showcasing AI-powered recommendations, patient management, analytics, and more.*
-
----
-
 ## 🌟 Overview
 
 OncoAI is a cutting-edge, full-stack healthcare platform designed to revolutionize cancer treatment planning through artificial intelligence. Built with modern web technologies, it provides oncologists and healthcare professionals with intelligent tools for personalized patient care, treatment recommendations, and comprehensive clinical data management.
@@ -37,6 +25,7 @@ OncoAI is a cutting-edge, full-stack healthcare platform designed to revolutioni
 - 📈 **Treatment Pathways** - Visualize patient-specific treatment protocols
 - 🎯 **Risk Assessment** - AI-calculated risk scores based on clinical factors
 - 🌓 **Dark Mode** - Beautiful dark and light themes
+- ✨ **Premium Aesthetics** - State-of-the-art glassmorphism UI with interactive micro-animations and dynamic canvas backgrounds
 - 🔐 **Authentication** - Secure JWT-based login and user management
 
 
@@ -73,8 +62,6 @@ OncoAI is a cutting-edge, full-stack healthcare platform designed to revolutioni
 ---
 ## Features Overview
 
-
-
 ### Dashboard
 - Real-time analytics and metrics
 - Patient overview and trends
@@ -85,10 +72,6 @@ OncoAI is a cutting-edge, full-stack healthcare platform designed to revolutioni
 - Risk score assessment
 - Treatment history tracking
 - Genomic profile analysis
-
-
-
-
 
 ### AI Recommendations
 - Personalized treatment suggestions
@@ -101,9 +84,6 @@ OncoAI is a cutting-edge, full-stack healthcare platform designed to revolutioni
 - Exportable reports (PDF, Excel)
 - Custom date ranges
 - Treatment outcome analysis
-
-
-
 
 
 ### Appointments
@@ -122,71 +102,6 @@ Ensure you have the following installed:
 - **Python** 3.8+
 - **pip** (Python package manager)
 - **Git** (for cloning the repository)
-
-### Installation
-
-#### 1. Clone the Repository
-
-```bash
-git clone <repository-url>
-cd Hackathon_codes
-```
-
-#### 2. Backend Setup
-
-```bash
-# Navigate to backend directory
-cd backend
-
-# Create virtual environment
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# Mac/Linux
-python3 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-# Create .env file with:
-# DATABASE_URL=sqlite:///oncoai.db
-# SECRET_KEY=your-secret-key-here
-# ENFORCE_AUTH_HOURS=0
-
-# Initialize database
-python -c "from app import app, db; app.app_context().push(); db.create_all()"
-
-# Start backend server
-python app.py
-```
-
-Backend will run on `http://localhost:5000`
-
-#### 3. Frontend Setup
-
-```bash
-# Return to root directory
-cd ..
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-# Create .env file in root with:
-# VITE_API_URL=http://localhost:5000/api
-# VITE_AI_PROVIDER=openai
-# VITE_OPENAI_API_KEY=sk-your-key-here
-# OR
-# VITE_GEMINI_API_KEY=your-gemini-key-here
-
-# Start development server
-npm run dev
-```
-
-Frontend will run on `http://localhost:8080` (or the next available port)
 
 ### Quick Start (Both Servers)
 
@@ -246,8 +161,6 @@ npm run dev
 ├── tailwind.config.ts       # Tailwind CSS config
 └── README.md                # This file
 ```
-
----
 
 
 ### Environment Variables
@@ -349,4 +262,4 @@ All rights reserved.
 > 
 <div align="center">
 
-**Made with ❤️ by the OncoAI Team**
+**Made with ❤️ by Pranav Oswal**
