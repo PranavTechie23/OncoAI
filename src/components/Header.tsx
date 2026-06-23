@@ -18,6 +18,7 @@ import { toast } from "sonner";
 const publicNavLinks = [
   { name: "Home", path: "/" },
   { name: "About", path: "/about" },
+  { name: "Research", path: "/research" },
   { name: "Support", path: "/support" },
 ];
 
@@ -27,6 +28,8 @@ const privateNavLinks = [
   { name: "AI Recommendations", path: "/recommendations" },
   { name: "Reports", path: "/reports" },
   { name: "Appointments", path: "/appointments" },
+  { name: "Research", path: "/research" },
+  { name: "Support", path: "/support" },
 ];
 
 export function Header() {
@@ -47,9 +50,9 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 group">
-          <img 
-            src="/assets/OncoAI.png" 
-            alt="OncoAI Logo" 
+          <img
+            src="/assets/OncoAI.png"
+            alt="OncoAI Logo"
             className="h-18 w-14 object-contain transition-transform group-hover:scale-105 drop-shadow-lg brightness-110"
           />
           <span className="text-xl font-bold text-foreground">

@@ -23,9 +23,30 @@ export default function AnimatedNumber({
 }: AnimatedNumberProps) {
   const [displayValue, setDisplayValue] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [inView, setInView] = useState(false);
+  
+  const spanRef = useRef<HTMLSpanElement>(null);
   const startTimeRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const previousValueRef = useRef<number | string | null>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    if (spanRef.current) {
+      observer.observe(spanRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, []);
 
   // Parse the value to get the numeric part
   const parseValue = (val: number | string): number => {
@@ -58,6 +79,8 @@ export default function AnimatedNumber({
   const finalSuffix = typeof value === 'string' ? extractSuffix(value) : suffix;
 
   useEffect(() => {
+    if (!inView) return;
+
     // Reset if value changed
     if (previousValueRef.current !== value) {
       previousValueRef.current = value;
@@ -96,13 +119,13 @@ export default function AnimatedNumber({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [value, numericValue, duration, onComplete]);
+  }, [value, numericValue, duration, onComplete, inView]);
 
   // Format the display value
   const formattedValue = formatNumber(displayValue);
 
   return (
-    <span className={className}>
+    <span ref={spanRef} className={className}>
       {prefix}
       {formattedValue}
       {finalSuffix}

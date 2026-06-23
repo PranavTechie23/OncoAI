@@ -101,9 +101,7 @@ const Index = () => {
             </ScrollAnimation>
 
             <StaggerContainer className="grid md:grid-cols-3 gap-8 relative">
-              {/* Connecting line (desktop) */}
-              <div className="hidden md:block absolute top-24 left-[20%] right-[20%] h-px bg-gradient-to-r from-primary/40 via-success/40 to-primary/40" />
-
+              {/* Removed connecting line as it looked awkward crossing the gaps */}
               {[
                 {
                   step: "01",

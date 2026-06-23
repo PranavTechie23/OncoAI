@@ -1,220 +1,151 @@
-import { motion, useReducedMotion } from "framer-motion";
-import { ReactNode } from "react";
+import { ReactNode, createContext, useContext } from "react";
 import { useInView } from "react-intersection-observer";
 
 interface ScrollAnimationProps {
   children: ReactNode;
   delay?: number;
-  duration?: number;
   direction?: "up" | "down" | "left" | "right" | "fade" | "scale" | "blur" | "rotate";
   className?: string;
   once?: boolean;
   amount?: number;
-  distance?: number;
-  springiness?: "none" | "low" | "medium" | "high";
+  duration?: number;
+  springiness?: "low" | "medium" | "high";
 }
 
 export function ScrollAnimation({
   children,
-  delay = 0,
-  duration = 0.6,
-  direction = "up",
   className = "",
+  delay = 0,
+  direction = "up",
   once = true,
   amount = 0.2,
-  distance = 50,
-  springiness = "medium",
+  duration = 1,
 }: ScrollAnimationProps) {
   const { ref, inView } = useInView({
     triggerOnce: once,
     threshold: amount,
   });
-  
-  const shouldReduceMotion = useReducedMotion();
 
-  const getInitial = () => {
-    switch (direction) {
-      case "up":
-        return { y: distance, opacity: 0 };
-      case "down":
-        return { y: -distance, opacity: 0 };
-      case "left":
-        return { x: distance, opacity: 0 };
-      case "right":
-        return { x: -distance, opacity: 0 };
-      case "scale":
-        return { scale: 0.8, opacity: 0 };
-      case "blur":
-        return { filter: "blur(10px)", opacity: 0 };
-      case "rotate":
-        return { rotate: -10, scale: 0.9, opacity: 0 };
-      default:
-        return { opacity: 0 };
-    }
-  };
+  let translateClass = "";
+  let scaleClass = "";
+  let blurClass = "";
+  let rotateClass = "";
 
-  const getAnimate = () => {
-    if (direction === "scale") {
-      return { scale: 1, opacity: 1 };
-    }
-    if (direction === "blur") {
-      return { filter: "blur(0px)", opacity: 1 };
-    }
+  if (!inView) {
+    if (direction === "up") translateClass = "translate-y-12";
+    if (direction === "down") translateClass = "-translate-y-12";
+    if (direction === "left") translateClass = "-translate-x-12";
+    if (direction === "right") translateClass = "translate-x-12";
+    if (direction === "scale") scaleClass = "scale-90";
+    if (direction === "blur") blurClass = "blur-md";
     if (direction === "rotate") {
-      return { rotate: 0, scale: 1, opacity: 1 };
+      rotateClass = "-rotate-12";
+      scaleClass = "scale-90";
     }
-    return { x: 0, y: 0, opacity: 1 };
-  };
-
-  const getTransition = () => {
-    const springConfigs = {
-      none: { type: "tween" as const, duration, delay, ease: "easeOut" as const },
-      low: { type: "spring" as const, stiffness: 50, damping: 20, delay },
-      medium: { type: "spring" as const, stiffness: 100, damping: 20, delay },
-      high: { type: "spring" as const, stiffness: 200, damping: 25, delay },
-    };
-    return springConfigs[springiness];
-  };
-
-  if (shouldReduceMotion) {
-    return <div className={className}>{children}</div>;
+  } else {
+    translateClass = "translate-y-0 translate-x-0";
+    scaleClass = "scale-100";
+    blurClass = "blur-0";
+    rotateClass = "rotate-0";
   }
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial={getInitial()}
-      animate={inView ? getAnimate() : getInitial()}
-      transition={getTransition()}
-      className={className}
+      className={`${className} transition-all ease-out ${inView ? "opacity-100" : "opacity-0"} ${translateClass} ${scaleClass} ${blurClass} ${rotateClass}`}
+      style={{ 
+        transitionDuration: `${duration}s`,
+        transitionDelay: `${delay}s` 
+      }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
+
+interface StaggerContextType {
+  inView: boolean;
+  staggerDelay: number;
+}
+
+const StaggerContext = createContext<StaggerContextType | null>(null);
 
 interface StaggerContainerProps {
   children: ReactNode;
   className?: string;
   staggerDelay?: number;
-  once?: boolean;
-  amount?: number;
-  duration?: number;
 }
 
-export function StaggerContainer({
-  children,
-  className = "",
-  staggerDelay = 0.1,
-  once = true,
-  amount = 0.1,
-  duration = 0.5,
-}: StaggerContainerProps) {
+export function StaggerContainer({ children, className = "", staggerDelay = 0.15 }: StaggerContainerProps) {
   const { ref, inView } = useInView({
-    triggerOnce: once,
-    threshold: amount,
+    triggerOnce: true,
+    threshold: 0.1,
   });
 
-  const shouldReduceMotion = useReducedMotion();
-
-  if (shouldReduceMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
   return (
-    <motion.div
-      ref={ref}
-      initial="hidden"
-      animate={inView ? "visible" : "hidden"}
-      variants={{
-        visible: {
-          transition: {
-            staggerChildren: staggerDelay,
-            delayChildren: 0.1,
-          },
-        },
-      }}
-      className={className}
-    >
-      {children}
-    </motion.div>
+    <div ref={ref} className={className}>
+      <StaggerContext.Provider value={{ inView, staggerDelay }}>
+        {children}
+      </StaggerContext.Provider>
+    </div>
   );
 }
 
 interface StaggerItemProps {
   children: ReactNode;
   className?: string;
-  direction?: "up" | "down" | "left" | "right" | "fade" | "scale";
-  distance?: number;
+  index?: number;
+  direction?: "up" | "down" | "left" | "right" | "fade" | "scale" | "blur" | "rotate";
 }
 
-export function StaggerItem({
-  children,
-  className = "",
-  direction = "up",
-  distance = 30,
-}: StaggerItemProps) {
-  const shouldReduceMotion = useReducedMotion();
+export function StaggerItem({ children, className = "", index = 0, direction = "up" }: StaggerItemProps) {
+  const context = useContext(StaggerContext);
+  
+  // If used without a StaggerContainer, default to inView = true to avoid hiding forever
+  const inViewParent = context ? context.inView : true;
+  const staggerDelay = context ? context.staggerDelay : 0.15;
+  
+  const delay = index * staggerDelay;
 
-  const getVariants = () => {
-    const base = {
-      hidden: { opacity: 0 },
-      visible: { opacity: 1 },
-    };
+  let translateClass = "";
+  let scaleClass = "";
+  let blurClass = "";
+  let rotateClass = "";
 
-    switch (direction) {
-      case "up":
-        return {
-          hidden: { ...base.hidden, y: distance },
-          visible: { ...base.visible, y: 0 },
-        };
-      case "down":
-        return {
-          hidden: { ...base.hidden, y: -distance },
-          visible: { ...base.visible, y: 0 },
-        };
-      case "left":
-        return {
-          hidden: { ...base.hidden, x: distance },
-          visible: { ...base.visible, x: 0 },
-        };
-      case "right":
-        return {
-          hidden: { ...base.hidden, x: -distance },
-          visible: { ...base.visible, x: 0 },
-        };
-      case "scale":
-        return {
-          hidden: { ...base.hidden, scale: 0.8 },
-          visible: { ...base.visible, scale: 1 },
-        };
-      default:
-        return base;
+  if (!inViewParent) {
+    if (direction === "up") translateClass = "translate-y-12";
+    if (direction === "down") translateClass = "-translate-y-12";
+    if (direction === "left") translateClass = "-translate-x-12";
+    if (direction === "right") translateClass = "translate-x-12";
+    if (direction === "scale") scaleClass = "scale-90";
+    if (direction === "blur") blurClass = "blur-md";
+    if (direction === "rotate") {
+      rotateClass = "-rotate-12";
+      scaleClass = "scale-90";
     }
-  };
-
-  if (shouldReduceMotion) {
-    return <div className={className}>{children}</div>;
+  } else {
+    translateClass = "translate-y-0 translate-x-0";
+    scaleClass = "scale-100";
+    blurClass = "blur-0";
+    rotateClass = "rotate-0";
   }
-
+  
   return (
-    <motion.div
-      variants={getVariants()}
-      transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className={className}
+    <div
+      className={`${className} transition-all duration-700 ease-out ${inViewParent ? "opacity-100" : "opacity-0"} ${translateClass} ${scaleClass} ${blurClass} ${rotateClass}`}
+      style={{ transitionDelay: `${delay}s` }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-// Demo component to showcase the animations
 export default function ScrollAnimationDemo() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-white">
       <div className="max-w-4xl mx-auto px-6 py-20 space-y-32">
         {/* Hero Section */}
-        <ScrollAnimation direction="fade" duration={1}>
+        <ScrollAnimation>
           <h1 className="text-6xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
             Enhanced Scroll Animations
           </h1>
@@ -222,21 +153,21 @@ export default function ScrollAnimationDemo() {
 
         {/* Direction Examples */}
         <section className="space-y-16">
-          <ScrollAnimation direction="up" distance={80}>
+          <ScrollAnimation>
             <div className="bg-purple-500/20 backdrop-blur-sm border border-purple-500/30 p-8 rounded-2xl">
               <h2 className="text-3xl font-bold mb-4">Slide Up Animation</h2>
               <p className="text-purple-200">Elements gracefully rise from below with smooth easing.</p>
             </div>
           </ScrollAnimation>
 
-          <ScrollAnimation direction="left" distance={100}>
+          <ScrollAnimation>
             <div className="bg-pink-500/20 backdrop-blur-sm border border-pink-500/30 p-8 rounded-2xl">
               <h2 className="text-3xl font-bold mb-4">Slide Left Animation</h2>
               <p className="text-pink-200">Content flows in from the right side of the screen.</p>
             </div>
           </ScrollAnimation>
 
-          <ScrollAnimation direction="scale" springiness="high">
+          <ScrollAnimation>
             <div className="bg-blue-500/20 backdrop-blur-sm border border-blue-500/30 p-8 rounded-2xl">
               <h2 className="text-3xl font-bold mb-4">Scale Animation</h2>
               <p className="text-blue-200">Elements pop into view with a bouncy spring effect.</p>

@@ -1,8 +1,8 @@
 import { Suspense, lazy, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+const ToasterComponent = lazy(() => import("./components/ui/toaster").then((mod) => ({ default: mod.Toaster })));
+const SonnerComponent = lazy(() => import("./components/ui/sonner").then((mod) => ({ default: mod.Toaster })));
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -45,6 +45,18 @@ function PublicRoute({ children }: { children: React.ReactElement }) {
   return !isAuthenticated ? children : <Navigate to="/dashboard" replace />;
 }
 
+function ReactiveIndex() {
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <Index />
+    </Suspense>
+  );
+}
+
 function ChatBotLoader() {
   const [loaded, setLoaded] = useState(false);
 
@@ -71,9 +83,13 @@ const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner position="bottom-right" richColors expand visibleToasts={6} />
+          <TooltipProvider>
+          <Suspense fallback={null}>
+            <ToasterComponent />
+          </Suspense>
+          <Suspense fallback={null}>
+            <SonnerComponent position="bottom-right" richColors expand visibleToasts={6} />
+          </Suspense>
           <BrowserRouter
             future={{
               v7_startTransition: true,
@@ -99,7 +115,7 @@ const App = () => (
                     </PublicRoute>
                   }
                 />
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<ReactiveIndex />} />
 
               <Route
                 path="/dashboard"
@@ -150,6 +166,7 @@ const App = () => (
                 }
               />
               {/* Public resource routes */}
+              <Route path="/about" element={<About />} />
               <Route path={routes.DOCUMENTATION} element={<Documentation />} />
               <Route path={routes.API_REFERENCE} element={<ApiReference />} />
               <Route path={routes.RESEARCH_PAPERS} element={<ResearchPapers />} />

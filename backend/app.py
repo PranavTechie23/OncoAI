@@ -47,9 +47,18 @@ else:
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 # Configure CORS to allow Authorization header and credentials
-CORS(app, 
+# Allow locking to specific frontend origins via `FRONTEND_ORIGINS` env var
+# Example: FRONTEND_ORIGINS=https://app.example.com,https://staging.example.com
+frontend_origins = os.getenv("FRONTEND_ORIGINS", "").strip()
+if frontend_origins:
+    origins_value = [o.strip() for o in frontend_origins.split(",") if o.strip()]
+else:
+    # In absence of explicit config, allow all origins (development)
+    origins_value = "*"
+
+CORS(app,
      resources={r"/api/*": {
-         "origins": "*",
+         "origins": origins_value,
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          "allow_headers": ["Content-Type", "Authorization"],
          "expose_headers": ["Content-Type"],

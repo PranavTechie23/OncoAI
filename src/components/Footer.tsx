@@ -3,150 +3,35 @@ import { Link } from "react-router-dom";
 
 export function Footer() {
   return (
-    <footer className="bg-card border-t border-border mt-auto">
-      <div className="container py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand */}
-          <div className="space-y-4">
-            <Link to="/" className="flex items-start gap-3 group">
-              <div className="flex flex-col items-start gap-2">
-                {/* Logo with rounded rectangle container */}
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-primary/10 dark:bg-primary/20 p-2 border border-primary/20">
-                    <img 
-                      src="/assets/OncoAI.png" 
-                      alt="OncoAI Logo" 
-                      className="h-10 w-10 object-contain drop-shadow-lg brightness-110"
-                    />
-                  </div>
-                  <span className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
-                    Onco<span className="text-primary">AI</span>
-                  </span>
-                </div>
-                {/* Intelligent Cancer Care tagline */}
-                <p className="text-xs font-medium text-primary/80 ml-1">
-                  Intelligent Cancer Care
-                </p>
-              </div>
+    <footer className="bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl border-t border-border/40 dark:border-white/5 mt-auto relative z-40">
+      <div className="container py-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:pr-16">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2 group">
+              <span className="text-base font-bold text-foreground tracking-tight group-hover:opacity-80 transition-opacity">
+                Onco<span className="text-primary">AI</span>
+              </span>
             </Link>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              AI-powered personalized cancer treatment planning for better patient outcomes.
+            <div className="h-4 w-px bg-border/60" />
+            <p className="text-xs text-muted-foreground font-medium">
+              © {new Date().getFullYear()} All rights reserved.
             </p>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4">Quick Links</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  to="/"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/patients"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Patients
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/recommendations"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  AI Recommendations
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/reports"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Reports
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Resources */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4">Resources</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  to="/documentation"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Documentation
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/api-reference"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  API Reference
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/research"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Research Papers
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/support"
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Support
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4">Contact</h4>
-            <ul className="space-y-3">
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4 text-primary" />
-                contact@oncoai.com
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4 text-primary" />
-                +1 (555) 123-4567
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 text-primary" />
-                Medical Research Center
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom */}
-        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-muted-foreground">
-            © 2025 OncoAI. All rights reserved.
-          </p>
-          <div className="flex gap-6">
-            <Link to="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+          <div className="flex items-center gap-6">
+            <a href="mailto:contact@oncoai.com" className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 font-medium">
+              <Mail className="h-3.5 w-3.5" />
+              Support
+            </a>
+            <Link to="/privacy" className="text-xs text-muted-foreground hover:text-primary transition-colors font-medium">
               Privacy Policy
             </Link>
-            <Link to="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+            <Link to="/terms" className="text-xs text-muted-foreground hover:text-primary transition-colors font-medium">
               Terms of Service
             </Link>
           </div>
         </div>
       </div>
     </footer>
-  );
+  );;
 }

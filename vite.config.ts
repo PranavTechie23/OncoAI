@@ -26,34 +26,17 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) {
-            return;
+          if (!id.includes('node_modules')) return;
+          try {
+            const parts = id.split('node_modules/')[1].split('/');
+            let pkg = parts[0];
+            if (pkg && pkg.startsWith('@')) pkg = parts.slice(0, 2).join('/');
+            // sanitize package name for filename
+            const name = pkg.replace('@', '').replace('/', '-');
+            return `vendor-${name}`;
+          } catch (e) {
+            return 'vendor';
           }
-          if (id.includes('recharts')) {
-            return 'vendor-recharts';
-          }
-          if (id.includes('lucide-react')) {
-            return 'vendor-lucide';
-          }
-          if (id.includes('@tanstack/react-query')) {
-            return 'vendor-react-query';
-          }
-          if (id.includes('framer-motion')) {
-            return 'vendor-framer-motion';
-          }
-          if (id.includes('react-dom')) {
-            return 'vendor-react-dom';
-          }
-          if (id.includes('react')) {
-            return 'vendor-react';
-          }
-          if (id.includes('@radix-ui')) {
-            return 'vendor-radix';
-          }
-          if (id.includes('sonner')) {
-            return 'vendor-sonner';
-          }
-          return 'vendor';
         },
       },
     },

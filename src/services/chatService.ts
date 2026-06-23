@@ -173,8 +173,12 @@ export function getFallbackResponse(userMessage: string): string {
     return "Risk assessment involves analyzing multiple factors including cancer type, stage, and comorbidities. Would you like to discuss a specific case?";
   }
 
-  if (lowerMessage.includes('cancer')) {
-    return "Cancer is a broad diagnosis that depends on the type, stage, and treatment history. Please share more details such as the cancer type, stage, prior therapies, or whether you are looking for hospitals in a specific city like Pune.";
+  if (lowerMessage.includes('best cancer hospital') || lowerMessage.includes('top cancer hospital') || (lowerMessage.includes('world') && lowerMessage.includes('cancer hospital'))) {
+    return "Globally, some of the top-ranked cancer hospitals include the MD Anderson Cancer Center (Texas, USA), Memorial Sloan Kettering Cancer Center (New York, USA), and the Mayo Clinic (Minnesota, USA). These institutions are renowned for their advanced oncology research, groundbreaking clinical trials, and precision medicine programs.";
+  }
+
+  if (lowerMessage.includes('what is cancer') || lowerMessage.includes('info about cancer') || lowerMessage.includes('about cancer') || lowerMessage.includes('explain cancer')) {
+    return "Cancer is a complex group of diseases characterized by the uncontrolled growth and spread of abnormal cells. If the spread is not controlled, it can result in death. It is caused by changes (mutations) to the DNA within cells. Early detection and precision oncology—tailoring treatment to the genetic profile of the patient and the tumor—are highly effective in modern cancer care.";
   }
 
   if ((lowerMessage.includes('cancer hospital') || lowerMessage.includes('cancer centre') || lowerMessage.includes('cancer center') || lowerMessage.includes('oncology hospital') || lowerMessage.includes('oncology centre') || lowerMessage.includes('oncology center')) && lowerMessage.includes('pune')) {
@@ -183,6 +187,10 @@ export function getFallbackResponse(userMessage: string): string {
 
   if (lowerMessage.includes('hospital') || lowerMessage.includes('centre') || lowerMessage.includes('center')) {
     return "I can help you identify oncology and cancer care facilities. Please share the city or region you are looking for, and I can suggest appropriate centers and next steps.";
+  }
+
+  if (lowerMessage.includes('cancer')) {
+    return "Cancer is a broad diagnosis that depends on the type, stage, and treatment history. I can provide general information about cancer, or if you have a specific case, please share details such as the cancer type, stage, or prior therapies.";
   }
   
   return "I'm here to help with oncology treatment recommendations and patient care coordination. How can I assist you today?";

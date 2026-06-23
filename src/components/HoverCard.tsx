@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { ReactNode } from "react";
 
 interface HoverCardProps {
@@ -15,17 +14,9 @@ export function HoverCard({
   hoverRotate = 0,
 }: HoverCardProps) {
   return (
-    <motion.div
-      whileHover={{
-        scale: hoverScale,
-        rotate: hoverRotate,
-        transition: { duration: 0.3, ease: "easeOut" },
-      }}
-      whileTap={{ scale: 0.98 }}
-      className={className}
-    >
+    <div className={`${className} transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl`}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 

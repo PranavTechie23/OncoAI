@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Suspense, lazy, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,17 +28,7 @@ import { TreatmentPathway } from "@/components/TreatmentPathway";
 import { PatientTreatmentView } from "@/components/PatientTreatmentView";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { downloadReportAsPDF } from "@/utils/reportDownload";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+const AIRecommendationsChart = lazy(() => import("@/components/AIRecommendationsChart").then((mod) => ({ default: mod.default })));
 
 interface AIRecommendationsPanelProps {
   patientId: number;
@@ -267,18 +257,9 @@ export function AIRecommendationsPanel({
             <TrendingUp className="h-5 w-5 text-primary" />
             Treatment Response Probability Comparison
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={treatmentChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis domain={[0, 100]} />
-              <Tooltip
-                formatter={(value: number) => `${value}%`}
-                labelStyle={{ color: "var(--foreground)" }}
-              />
-              <Bar dataKey="probability" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<div className="h-64 rounded-3xl bg-muted animate-pulse" />}>
+            <AIRecommendationsChart treatmentChartData={treatmentChartData} />
+          </Suspense>
         </Card>
       )}
 
